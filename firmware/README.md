@@ -30,6 +30,7 @@ Arduino op Windows crasht bij paden met spaties, haakjes of OneDrive.
 2. Verplaats de map naar **`C:\MakerPulse_CYD\`** (niet in Downloads, niet in Documenten).
 3. Open **`C:\MakerPulse_CYD\MakerPulse_CYD.ino`**.
 
+Gebruik geen speciale tekens in je pad: -_()., e.a.
 Als je hem in Downloads laat staan (`MakerPulse_CYD (1)` of OneDrive) krijg je:
 `bootloader.bin was unexpected at this time`.
 
