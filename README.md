@@ -1,71 +1,122 @@
 # MakerPulse
 
-MakerWorld-stats op een Cheap Yellow Display (ESP32-2432S028): downloads, likes, prints, boosts, collecties en comments. Bij een wijziging stuurt de CYD zelf een Telegram, met de titel van het model. Comments is het totaal van **al je gepubliceerde modellen**.
+MakerWorld-statistieken op een Cheap Yellow Display ([ESP32-2432S028](https://github.com/witnessmenow/ESP32-Cheap-Yellow-Display)).
 
-De module praat daarna zelf met MakerWorld. Je browser mag dicht.
+![MakerPulse op het CYD-scherm](docs/cyd.png)
 
-**Firmware:** `2026.09.12a`
+Downloads, likes, prints, boosts, collecties en comments — bij een wijziging stuurt de module zelf een Telegram, met de titel van het model. **Comments is het totaal van al je gepubliceerde modellen**, niet alleen het uitgelichte.
 
-## Snel starten
+Na het flashen praat de CYD zelf met MakerWorld. Je browser mag dicht.
 
-**Aanbevolen:** open de [configurator](#configurator) (je gepubliceerde Grok-link, `*.grok.me`).
+**Firmware:** [`2026.09.12a`](firmware/MakerPulse_CYD.ino) · **Licentie:** [MIT](LICENSE)
 
-1. Plak een modellink of je MakerWorld-gebruikers-ID.
-2. Vul WiFi in (2,4 GHz), optioneel Telegram en MQTT.
-3. Download `MakerPulse_CYD.zip`.
-4. Flash met Arduino IDE — zie [firmware/README.md](firmware/README.md).
+---
 
-Niets in de sketch aanpassen: `config.h` is al ingevuld.
+## Wat het doet
+
+- Zes cijfers op het 2,8"-scherm (240×320)
+- Telegram bij échte verandering (eerste start is stil)
+- Per model de titel in het bericht, niet alleen de vastgepinde
+- MQTT → Home Assistant-lamp (aan/uit + helderheid 0–255)
+- HTTP-endpoint `/light` als je geen broker wilt
+- Onvolledige comment-telling wordt niet overgenomen (`gevonden/totaal` onderaan)
+
+Geen MakerWorld-login, geen cloud van iemand anders. Alleen publieke profiel- en modeldata.
+
+## Twee manieren om te flashen
+
+### A. Configurator (aanbevolen)
+
+De web-GUI vult `config.h` voor je in. Niets in de sketch aanpassen.
+
+1. Open je gepubliceerde Grok-link (`*.grok.me`).
+2. Plak een modellink of je MakerWorld-gebruikers-ID.
+3. Vul WiFi in (2,4 GHz). Optioneel: Telegram en MQTT.
+4. Download `MakerPulse_CYD.zip`.
+5. Flash — zie [firmware/README.md](firmware/README.md).
+
+> Na een firmware-fix: **opnieuw publiceren** op Grok, anders blijft de oude zip online.
+>
+> Zet je `*.grok.me`-URL hier als je de README forkt: _nog niet ingevuld_.
+
+![Configurator](docs/configurator.png)
+
+### B. Rechtstreeks vanaf deze repo
+
+1. Clone of download de repo.
+2. Kopieer [`firmware/config.h.example`](firmware/config.h.example) → `firmware/config.h`.
+3. Vul WiFi-naam, wachtwoord en `MAKERWORLD_UID` in (elke regel heeft uitleg).
+4. Open `firmware/MakerPulse_CYD.ino` in Arduino IDE 2.
+5. Bord **ESP32 Dev Module**, flash **4MB**, partition **Default 4MB with spiffs**.
+6. Libraries: **LovyanGFX**, **ArduinoJson 7**, **PubSubClient**.
+7. Zet de map op een pad zonder spaties, bijv. `C:\MakerPulse_CYD\`.
+
+Uitgebreide stappen, Telegram, MQTT en storingstabel: [firmware/README.md](firmware/README.md).
 
 ## Hardware
 
-- ESP32-2432S028 (CYD 2,8", 240×320)
-- USB-kabel die data doorgeeft (geen charge-only)
-- 2,4 GHz WiFi
-
-Optioneel: Telegram-bot, MQTT / Home Assistant (scherm aan/uit + helderheid).
-
-## Flashen vanaf GitHub
-
-Zonder configurator:
-
-1. Kopieer [`firmware/config.h.example`](firmware/config.h.example) naar `firmware/config.h`.
-2. Vul WiFi-naam, wachtwoord en `MAKERWORLD_UID` in (elke regel heeft uitleg).
-3. Open `firmware/MakerPulse_CYD.ino` in Arduino IDE.
-4. Bord: **ESP32 Dev Module**, flash 4MB, partition *Default 4MB with spiffs*.
-5. Libraries: **LovyanGFX**, **ArduinoJson 7**, **PubSubClient**.
-6. Zet de map op een pad zonder spaties, bijv. `C:\MakerPulse_CYD\`.
-
-Uitgebreide stappen: [firmware/README.md](firmware/README.md).
-
-## Configurator
-
-De web-GUI maakt de zip met jouw instellingen. Die GUI is geen GitHub Pages-site (er is een server nodig voor MakerWorld).
-
-| Manier | Wanneer |
+| | |
 | --- | --- |
-| Gepubliceerde Grok-link (`*.grok.me`) | Delen met anderen — geen account nodig als toegang “iedereen met de link” is |
-| Docker op je eigen server | Zelf hosten, zie [DOCKER.md](DOCKER.md) |
-| Deze repo | Firmware (Arduino) + handleiding |
+| Bord | ESP32-2432S028 (CYD 2,8", 240×320) |
+| Kabel | USB die data doorgeeft (geen charge-only) |
+| Netwerk | 2,4 GHz WiFi (geen 5 GHz) |
+| Optioneel | Telegram-bot, MQTT / Home Assistant |
 
-Na een firmware-fix: **opnieuw publiceren** op Grok, anders blijft de oude zip online.
+Nieuwere USB-C-CYD: in de configurator **nieuwere CYD (USB-C)** aanzetten, of in `config.h` `CYD_PANEL_ST7789 1`.
 
-## Zelf hosten (Docker)
+## Telegram
 
-Zie [DOCKER.md](DOCKER.md). Geen database, geen login. MQTT voor de backlight zit op de ESP32 zelf.
+1. [@BotFather](https://t.me/BotFather) → `/newbot` → token.
+2. Open je bot en tik **Start**.
+3. Chat-ID in de configurator of `config.h`.
+4. Stuur een testbericht vóór je flasht.
 
-## Wat zit waar
+De CYD bewaart de laatste cijfers in flash. Alleen een echte delta triggert een bericht.
 
-| Pad | Inhoud |
-| --- | --- |
-| [`firmware/`](firmware/) | Arduino-sketch, `mp_types.h`, `config.h.example` |
-| [`DOCKER.md`](DOCKER.md) | Configurator zelf hosten |
-| [`SECURITY.md`](SECURITY.md) | Wat je nooit publiceert |
+## Home Assistant
 
-## Niet uploaden
+Na het flashen staat het IP rechtsonder op het scherm (`makerpulse-cyd.local`).
 
-Zie [SECURITY.md](SECURITY.md). Kort: geen `config.h` met wachtwoorden, geen persoonlijke zip, geen DuckDNS.
+**MQTT (aanbevolen):** Mosquitto in HA, host/user/wachtwoord in MakerPulse, opnieuw flashen. Daarna verschijnt lamp **MakerPulse scherm** onder MQTT-apparaten.
+
+**HTTP:** `POST http://makerpulse-cyd.local/light` met `{"state":"ON","brightness":255}`. Details in [firmware/README.md](firmware/README.md).
+
+## Configurator zelf hosten
+
+De GUI is **geen** GitHub Pages-site: er is een server nodig (MakerWorld + zip).
+
+Deze publieke repo is de **Arduino-firmware**. De Node-app zit in `makerpulse-docker.zip`, te downloaden via de configurator. Uitpakken en:
+
+```bash
+docker compose up -d --build
+```
+
+Poort 3080, geen database, geen login. Handleiding: [DOCKER.md](DOCKER.md).
+
+Jouw thuis-Docker en DuckDNS blijven privé.
+
+## Map
+
+```
+firmware/MakerPulse_CYD.ino   sketch (niet splitsen)
+firmware/mp_types.h           types voor Arduino-prototypes
+firmware/config.h.example     kopieer naar config.h — nooit committen
+firmware/README.md            flashen, Telegram, MQTT, storingen
+docs/                         schermafbeeldingen
+LICENSE                       MIT
+SECURITY.md                   wat je nooit publiceert
+```
+
+`config.h` staat in [`.gitignore`](.gitignore). `mp_types.h` moet naast de `.ino` blijven staan.
+
+## Niet publiceren
+
+Zie [SECURITY.md](SECURITY.md).
+
+- geen `config.h` met WiFi / Telegram-token / MQTT-wachtwoord
+- geen persoonlijke `MakerPulse_CYD.zip`
+- geen DuckDNS, intern HA-IP of compose met geheimen
 
 ## Licentie
 
-[MIT](LICENSE)
+[MIT](LICENSE) © 2026 [leon199219](https://github.com/leon199219)

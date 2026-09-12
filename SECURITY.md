@@ -6,7 +6,9 @@
 - Een `MakerPulse_CYD.zip` die jij al met jouw gegevens hebt gegenereerd
 - DuckDNS-host, intern IP van Home Assistant, of je compose-file met geheimen
 
-Anderen maken hun eigen zip via de configurator, of kopiëren `firmware/config.h.example` naar `config.h`.
+Anderen maken hun eigen zip via de configurator, of kopiëren [`firmware/config.h.example`](firmware/config.h.example) naar `config.h`.
+
+`config.h` staat in `.gitignore`. Controleer voor een push dat hij niet in de commit zit.
 
 ## Telegram
 
@@ -15,3 +17,7 @@ Een bot-token is een wachtwoord. Maak per persoon een eigen bot via [@BotFather]
 ## MakerWorld
 
 MakerPulse gebruikt alleen publieke MakerWorld-data (profiel + gepubliceerde modellen). Er is geen MakerWorld-login nodig.
+
+## MQTT
+
+User/wachtwoord van Mosquitto horen in `config.h` op het apparaat, niet in deze repo.
