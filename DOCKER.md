@@ -1,26 +1,27 @@
-# ## OPTIONEEL ## MakerPulse in Docker
+# OPTIONAL — MakerPulse in Docker
 
-De configurator (profiel koppelen, firmware-zip, Telegram-test) draait als container. De CYD zelf heeft deze pagina niet nodig — die praat rechtstreeks met MakerWorld.
+The configurator (link a profile, firmware zip, Telegram test) runs as a container. The CYD itself does not need this page — it talks to MakerWorld directly.
 
-## Welk pakket?
+## Which package?
 
-| Je hebt | Wat je doet |
+| You have | What to do |
 | --- | --- |
-| `makerpulse-docker.zip` (uit de configurator) | Uitpakken, daarna het blok hieronder |
-| Alleen deze GitHub-repo | Bevat de firmware, **niet** de Node-app. Download de docker-zip via de configurator |
+| `makerpulse-docker.zip` (from the configurator) | Unzip, then follow the block below |
+| This GitHub repo only | Contains the firmware, **not** the Node app. Download the Docker zip from the configurator |
 
-Een clone van [MakerPulse-CYD](https://github.com/leon199219/MakerPulse-CYD) bouwt deze image niet: `src/` staat bewust niet op GitHub.
+A clone of [MakerPulse-CYD](https://github.com/leon199219/MakerPulse-CYD) will not build this image: `src/` is intentionally not on GitHub.
 
-## Snel (in de zip-map)
+## Quick start (inside the unzipped folder)
 
 ```bash
 docker compose up -d --build
 ```
 
-Daarna: `http://SERVER-IP:3080`
+Then: `http://SERVER-IP:3080`
 
-## In je compose
+## In your compose
 
+```yaml
 services:
   makerpulse:
     build: ./makerpulse
@@ -35,33 +36,33 @@ services:
       NITRO_HOST: "0.0.0.0"
 ```
 
-De map `makerpulse` (met Dockerfile) zet je naast de compose-file, bv. `/opt/makerpulse` als je file `/opt/docker-compose.yaml` is.
+Put the `makerpulse` folder (with the Dockerfile) next to the compose file, e.g. `/opt/makerpulse` if your file is `/opt/docker-compose.yaml`.
 
-Start vanuit die map, niet vanuit `/root` na `sudo -i`:
+Start from that directory, not from `/root` after `sudo -i`:
 
 ```bash
 cd /opt
 docker compose up -d --build makerpulse
 ```
 
-Zet `3080` om als die poort al bezet is. Achter een reverse proxy (nginx, Caddy, Traefik) kun je de poort intern laten en alleen `/` doorzetten.
+Change `3080` if that port is already taken. Behind a reverse proxy (nginx, Caddy, Traefik) you can keep the port internal and forward `/` only.
 
-## Firmware-update
+## Firmware update
 
-De sketch zit in de image (gebouwd bij `--build`). Een nieuwe `MakerPulse_CYD.zip` van een oude container is dus ook oud.
+The sketch is baked into the image (at `--build`). A new `MakerPulse_CYD.zip` from an old container is therefore also old.
 
-Na een MakerPulse-update:
+After a MakerPulse update:
 
-1. Download `makerpulse-docker.zip` opnieuw.
-2. Vervang de map `makerpulse` (bijv. `/opt/makerpulse`).
+1. Download `makerpulse-docker.zip` again.
+2. Replace the `makerpulse` folder (e.g. `/opt/makerpulse`).
 3. `docker compose up -d --build makerpulse`
 
-In de .ino moet de eerste regel `MakerPulse CYD 2026.09.12a` (of nieuwer) zijn.
+The first line of the `.ino` must be `MakerPulse CYD 2026.09.12a` (or newer).
 
-## Wat erin zit
+## What is included
 
-- MakerWorld ophalen (server-side, geen CORS-probleem)
-- Telegram chat zoeken en testbericht
-- Firmware-zip genereren
+- Fetching MakerWorld (server-side, no CORS issue)
+- Finding a Telegram chat and sending a test message
+- Generating the firmware zip
 
-Geen database, geen login. MQTT voor de CYD-backlight blijft op de ESP32 zelf — dat gaat niet via deze container.
+No database, no login. MQTT for the CYD backlight stays on the ESP32 itself — it does not go through this container.

@@ -1,32 +1,32 @@
 #pragma once
-// MakerPulse — instellingen. Kopieer dit bestand naar config.h en vul in.
-// Daarna in Arduino IDE: sketch Uploaden. mp_types.h blijft naast dit bestand.
+// MakerPulse — settings. Copy this file to config.h and fill it in.
+// Then in Arduino IDE: Sketch → Upload. Keep mp_types.h next to this file.
 
-// --- verplicht ---
-#define WIFI_SSID "JOUW_WIFI_NAAM"            // 2,4 GHz-netwerk (niet 5 GHz)
-#define WIFI_PASSWORD "JOUW_WIFI_WACHTWOORD"  // WiFi-wachtwoord
-#define MAKERWORLD_UID 0UL                    // getal uit makerworld.com/.../u/DITGETAL
-#define MAKER_NAME "Maker"                    // naam bovenaan het scherm (kort)
+// --- required ---
+#define WIFI_SSID "JOUW_WIFI_NAAM"            // 2.4 GHz network (not 5 GHz)
+#define WIFI_PASSWORD "JOUW_WIFI_WACHTWOORD"  // Wi-Fi password
+#define MAKERWORLD_UID 0UL                    // number from makerworld.com/.../u/THISNUMBER
+#define MAKER_NAME "Maker"                    // name at the top of the screen (keep it short)
 
-// --- Telegram (leeg laten = geen berichten) ---
-#define TELEGRAM_BOT_TOKEN ""                 // van @BotFather na /newbot
-#define TELEGRAM_CHAT_ID ""                   // jouw chat-id (getal, vaak - of positief)
+// --- Telegram (leave empty = no messages) ---
+#define TELEGRAM_BOT_TOKEN ""                 // from @BotFather after /newbot
+#define TELEGRAM_CHAT_ID ""                   // your chat id (number, often - or positive)
 
-// --- scherm ---
-#define POLL_INTERVAL_SEC 300                 // check elke 300 seconden (120 / 300 / 600 / 900)
-#define CYD_INVERT 0                          // 1 = kleuren omkeren bij bleek/negatief beeld
-#define CYD_ROTATION 1                        // 0=USB onder, 1=USB links, 2=USB boven, 3=USB rechts
-#define CYD_PANEL_ST7789 0                    // 1 = nieuwere CYD met USB-C
+// --- display ---
+#define POLL_INTERVAL_SEC 300                 // check every 300 seconds (120 / 300 / 600 / 900)
+#define CYD_INVERT 0                          // 1 = invert colors if the image is pale/negative
+#define CYD_ROTATION 1                        // 0=USB bottom, 1=USB left, 2=USB top, 3=USB right
+#define CYD_PANEL_ST7789 0                    // 1 = newer CYD with USB-C
 #define CYD_OFFSET_ROTATION 2                 // USB-C: 0, micro-USB: 2
 #define CYD_RGB_ORDER 0                       // USB-C: 1, micro-USB: 0
 
-// --- Home Assistant / MQTT (leeg = uit) ---
-#define MQTT_HOST ""                          // IP van Home Assistant, bv. 192.168.1.10
+// --- Home Assistant / MQTT (empty = off) ---
+#define MQTT_HOST ""                          // Home Assistant IP, e.g. 192.168.1.10
 #define MQTT_PORT 1883
 #define MQTT_USER ""
 #define MQTT_PASS ""
 
-// --- welke Telegram-meldingen ---
+// --- which Telegram notifications ---
 #define NOTIFY_DOWNLOADS 1
 #define NOTIFY_LIKES 1
 #define NOTIFY_PRINTS 1

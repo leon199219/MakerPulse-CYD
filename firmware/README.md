@@ -1,94 +1,94 @@
-# MakerPulse voor ESP32-2432S028 (CYD)
+# MakerPulse for ESP32-2432S028 (CYD)
 
-Deze map is de Arduino-sketch. Clone de repo en open `MakerPulse_CYD.ino` hier, of download een zip via de configurator (dan is `config.h` al ingevuld).
+This folder is the Arduino sketch. Clone the repo and open `MakerPulse_CYD.ino` here, or download a zip from the configurator (then `config.h` is already filled in).
 
-Deze sketch toont je MakerWorld-stats op het 2,8"-scherm (downloads, likes, prints, boosts, collecties, comments) en stuurt een Telegram-bericht bij veranderingen, inclusief de titel van het model. Comments is het totaal van al je gepubliceerde modellen, niet alleen de uitgelichte. De module blijft zelf checken — de browser mag dicht.
+The sketch shows your MakerWorld stats on the 2.8" screen (downloads, likes, prints, boosts, collections, comments) and sends a Telegram message on changes, including the model title. Comments is the total of all your published models, not just the featured ones. The module keeps checking on its own — you can close the browser.
 
-## Wat je nodig hebt
+## What you need
 
 - ESP32-2432S028 (Cheap Yellow Display, 240×320)
-- USB-kabel die data doorgeeft (geen charge-only)
+- USB cable that carries data (not charge-only)
 - Arduino IDE 2
-- WiFi en een Telegram-bot
+- Wi-Fi and a Telegram bot
 
-## 1. Arduino IDE klaarzetten
+## 1. Set up Arduino IDE
 
-1. Installeer [Arduino IDE 2](https://www.arduino.cc/en/software).
-2. Extra → Voorkeuren → Extra Board Manager-URL's, voeg toe:
+1. Install [Arduino IDE 2](https://www.arduino.cc/en/software).
+2. File → Preferences → Additional boards manager URLs, add:
    `https://espressif.github.io/arduino-esp32/package_esp32_index.json`
-3. Board Manager: installeer **esp32** van Espressif (niet het pakket "Arduino ESP32 Boards"). Versie 2.0.17 of 3.x is prima.
-4. Library Manager, installeer:
+3. Boards Manager: install **esp32** by Espressif (not the "Arduino ESP32 Boards" package). Version 2.0.17 or 3.x is fine.
+4. Library Manager, install:
    - **LovyanGFX** (lovyan03)
-   - **ArduinoJson** (Benoit Blanchon, versie 7)
-   - **PubSubClient** (Nick O'Leary) — nodig voor Home Assistant / MQTT
+   - **ArduinoJson** (Benoit Blanchon, version 7)
+   - **PubSubClient** (Nick O'Leary) — required for Home Assistant / MQTT
 
-## 2. Zet de sketch op een simpel pad (Windows)
+## 2. Put the sketch on a simple path (Windows)
 
-Arduino op Windows crasht bij paden met spaties, haakjes of OneDrive.
+Arduino on Windows crashes on paths with spaces, parentheses or OneDrive.
 
-1. Pak de zip uit.
-2. Verplaats de map naar **`C:\MakerPulse_CYD\`** (niet in Downloads, niet in Documenten).
+1. Unzip the archive.
+2. Move the folder to **`C:\MakerPulse_CYD\`** (not Downloads, not Documents).
 3. Open **`C:\MakerPulse_CYD\MakerPulse_CYD.ino`**.
 
-Gebruik geen speciale tekens in je pad: -_()., e.a.
-Als je hem in Downloads laat staan (`MakerPulse_CYD (1)` of OneDrive) krijg je:
+Do not use special characters in the path: `-_().,` and similar.
+If you leave it in Downloads (`MakerPulse_CYD (1)` or OneDrive) you get:
 `bootloader.bin was unexpected at this time`.
 
-## 3. Boardinstellingen
+## 3. Board settings
 
 - Board: **ESP32 Dev Module**
 - Upload Speed: **115200**
 - Flash Size: **4MB (32Mb)**
 - Partition Scheme: **Default 4MB with spiffs**
 - PSRAM: **Disabled**
-- USB CDC On Boot: **Enabled** (bij Arduino-ESP32 3.x)
+- USB CDC On Boot: **Enabled** (with Arduino-ESP32 3.x)
 
-Kies de juiste poort (USB).
+Select the correct port (USB).
 
-## 4. Flashen
+## 4. Flashing
 
-1. Open `MakerPulse_CYD.ino` (laat `config.h`, `config.h.example` en `mp_types.h` in dezelfde map).
-   - Zip uit de configurator: **niets aanpassen**, alleen Uploaden.
-   - Van GitHub: kopieer `config.h.example` → `config.h` en vul WiFi + MakerWorld-ID in (elke regel heeft uitleg).
-        -  Of pas handmatig aan: `MakerPulse_CYD.ino` >> Regel 45  // --- Handmatige instellingen
-2. Sluit de CYD aan.
-3. Sketch → Uploaden.
-4. Blijft hij hangen op "Connecting..."? Houd **BOOT** in, tik **RST**, laat BOOT los, en upload opnieuw.
+1. Open `MakerPulse_CYD.ino` (leave `config.h`, `config.h.example` and `mp_types.h` in the same folder).
+   - Zip from the configurator: **change nothing**, just Upload.
+   - From GitHub: copy `config.h.example` → `config.h` and fill in Wi-Fi + MakerWorld ID (every line has a comment).
+        -  Or edit manually: `MakerPulse_CYD.ino` >> line 45  // --- Manual settings
+2. Plug in the CYD.
+3. Sketch → Upload.
+4. Stuck on "Connecting..."? Hold **BOOT**, tap **RST**, release BOOT, and upload again.
 
-Na een geslaagde upload start het scherm met WiFi → MakerWorld → je zes cijfers.
+After a successful upload the screen starts with Wi-Fi → MakerWorld → your six figures.
 
-## 5. Scherm ziet er gek uit ## TROUBLESHOOTING
+## 5. The screen looks wrong ## TROUBLESHOOTING
 
-Niet de sketch in Arduino draaien — kies de stand in de configurator, download opnieuw en flash opnieuw.
+Do not rotate the sketch in Arduino — pick the orientation in the configurator, download again and flash again.
 
-- Beeld 90° gedraaid, tekst door elkaar: andere **draaiing** (USB links/rechts/onder/boven).
-- Nog steeds 90°: zet **nieuwere CYD (USB-C)** aan.
-- Kleuren omgekeerd of heel bleek: **Kleuren omkeren**.
-- Helemaal wit/zwart: USB-kabel en voeding.
+- Image rotated 90°, text scrambled: different **rotation** (USB left/right/bottom/top).
+- Still 90°: enable **newer CYD (USB-C)**.
+- Colors inverted or very washed out: **Invert colors**.
+- Completely white/black: USB cable and power.
 
 ## 6. Telegram
 
-1. In Telegram: zoek **@BotFather** → `/newbot` → kopieer de token.
-2. Open je nieuwe bot en tik **Start**.
-3. Chat-ID vul je in de configurator in.
-4. Stuur daar een testbericht vóór je flasht.
+1. In Telegram: search **@BotFather** → `/newbot` → copy the token.
+2. Open your new bot and tap **Start**.
+3. Enter the chat ID in the configurator.
+4. Send a test message there before you flash.
 
-De CYD bewaart de laatste cijfers in flash. Eerste start stuurt geen melding; daarna alleen bij échte verandering. Het bericht noemt de titel van **elk** model waarvan downloads, likes, prints, boosts, collecties of comments veranderden — niet alleen de vastgepinde. Comments is de som van **alle** gepubliceerde modellen. Onderaan het scherm staat `gevonden/totaal` (bijv. `48/48`); rood betekent dat de telling die ronde onvolledig was en het vorige totaal blijft staan.
+The CYD stores the last figures in flash. The first boot does not send a notification; after that only a real change does. The message names the title of **every** model whose downloads, likes, prints, boosts, collections or comments changed — not only the pinned one. Comments is the sum of **all** published models. The bottom of the screen shows `gevonden/totaal` (e.g. `48/48`); red means that round's count was incomplete and the previous total is kept.
 
-## 7. Home Assistant — scherm aan/uit en helderheid
+## 7. Home Assistant — screen on/off and brightness
 
-Na het flashen toont de CYD zijn IP rechtsonder op het scherm.
+After flashing, the CYD shows its IP at the bottom-right of the screen.
 
-### Optie A — MQTT (aanbevolen)
+### Option A — MQTT (recommended)
 
-1. Installeer de add-on **Mosquitto broker** in Home Assistant.
-2. Vul in de MakerPulse-configurator het IP van Home Assistant in (en user/wachtwoord als je die in Mosquitto hebt gezet).
-3. Download opnieuw en flash opnieuw.
-4. In HA: Instellingen → Apparaten → MQTT. Lamp **MakerPulse scherm** verschijnt vanzelf (aan/uit + helderheid 0–255).
+1. Install the **Mosquitto broker** add-on in Home Assistant.
+2. In the MakerPulse configurator, enter the Home Assistant IP (and user/password if you set those in Mosquitto).
+3. Download again and flash again.
+4. In HA: Settings → Devices → MQTT. Light **MakerPulse scherm** appears automatically (on/off + brightness 0–255).
 
-Discovery-prefix is `homeassistant`. MQTT-discovery moet aan staan (standaard bij de officiële integratie).
+Discovery prefix is `homeassistant`. MQTT discovery must be on (default for the official integration).
 
-### Optie B — HTTP, zonder MQTT
+### Option B — HTTP, without MQTT
 
 ```yaml
 rest_command:
@@ -100,16 +100,16 @@ rest_command:
     payload: '{"state": "{{ state }}", "brightness": {{ brightness | default(255) }}}'
 ```
 
-Aan: `state: ON`, brightness `0–255`. Uit: `state: OFF`.
+On: `state: ON`, brightness `0–255`. Off: `state: OFF`.
 
-Status: `http://makerpulse-cyd.local/light` of `http://IP/light`.
+Status: `http://makerpulse-cyd.local/light` or `http://IP/light`.
 
-## Problemen
+## Problems
 
-| Symptoom | Check |
+| Symptom | Check |
 | --- | --- |
-| `bootloader.bin was unexpected at this time` | Map naar `C:\MakerPulse_CYD\` verplaatsen. Geen spaties, geen haakjes, geen OneDrive/Downloads. |
-| WiFi mislukt | SSID/wachtwoord, 2,4 GHz (geen 5 GHz) |
+| `bootloader.bin was unexpected at this time` | Move the folder to `C:\MakerPulse_CYD\`. No spaces, no parentheses, no OneDrive/Downloads. |
+| Wi-Fi failed | SSID/password, 2.4 GHz (not 5 GHz) |
 | MakerWorld offline | UID, internet |
-| Telegram mislukt | Token, chat-ID, /start getikt |
-| Upload faalt | Data-kabel, CH340-driver, BOOT-knop |
+| Telegram failed | Token, chat ID, /start tapped |
+| Upload fails | Data cable, CH340 driver, BOOT button |

@@ -1,23 +1,23 @@
 # Security
 
-## Nooit publiceren
+## Never publish
 
-- `config.h` met WiFi-wachtwoord, Telegram-bot-token of MQTT-wachtwoord
-- Een `MakerPulse_CYD.zip` die jij al met jouw gegevens hebt gegenereerd
-- DuckDNS-host, intern IP van Home Assistant, of je compose-file met geheimen
+- A `config.h` with a Wi-Fi password, Telegram bot token or MQTT password
+- A `MakerPulse_CYD.zip` you already generated with your own credentials
+- A DuckDNS host, an internal Home Assistant IP, or a compose file with secrets
 
-Anderen maken hun eigen zip via de configurator, of kopiëren [`firmware/config.h.example`](firmware/config.h.example) naar `config.h`.
+Other people make their own zip via the configurator, or copy [`firmware/config.h.example`](firmware/config.h.example) to `config.h`.
 
-`config.h` staat in `.gitignore`. Controleer voor een push dat hij niet in de commit zit.
+`config.h` is listed in `.gitignore`. Before you push, check it is not in the commit.
 
 ## Telegram
 
-Een bot-token is een wachtwoord. Maak per persoon een eigen bot via [@BotFather](https://t.me/BotFather). Deel geen token in issues of screenshots.
+A bot token is a password. Each person should create their own bot with [@BotFather](https://t.me/BotFather). Do not share a token in issues or screenshots.
 
 ## MakerWorld
 
-MakerPulse gebruikt alleen publieke MakerWorld-data (profiel + gepubliceerde modellen). Er is geen MakerWorld-login nodig.
+MakerPulse uses public MakerWorld data only (profile + published models). No MakerWorld login is required.
 
 ## MQTT
 
-User/wachtwoord van Mosquitto horen in `config.h` op het apparaat, niet in deze repo.
+Mosquitto user/password belong in `config.h` on the device, not in this repo.

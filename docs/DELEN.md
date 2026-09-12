@@ -1,50 +1,50 @@
-# MakerPulse delen (GitHub + MakerWorld)
+# Sharing MakerPulse (GitHub + MakerWorld)
 
-Publieke repo: https://github.com/leon199219/MakerPulse-CYD
+Public repo: https://github.com/leon199219/MakerPulse-CYD
 
-Jouw thuis-Docker en DuckDNS blijven privé. Publiek deel je: bron op GitHub, configurator-link (`*.grok.me`), en optioneel een model op MakerWorld.
+Keep your home Docker and DuckDNS private. Share publicly: source on GitHub, configurator link (`*.grok.me`), and optionally a model on MakerWorld.
 
-## Wat je nooit uploadt
+## Never upload
 
-- `config.h` met jouw WiFi, Telegram-token of MQTT-wachtwoord
-- IP van Home Assistant, DuckDNS-host, of interne compose-files
+- A `config.h` with your Wi-Fi, Telegram token or MQTT password
+- A Home Assistant IP, DuckDNS host, or internal compose files
 
-Anderen maken hun eigen zip via de configurator, of kopiëren `firmware/config.h.example`.
+Others generate their own zip via the configurator, or copy `firmware/config.h.example`.
 
 ## GitHub
 
-In de README bovenaan: je Grok-configurator (`*.grok.me`), niet `http://…duckdns…`.
+At the top of the README: your Grok configurator (`*.grok.me`), not `http://…duckdns…`.
 
-Na een firmware-fix opnieuw **Publish** op Grok, anders blijft de oude zip online.
+After a firmware fix, **Publish** again on Grok, otherwise the old zip stays online.
 
-## MakerWorld-model (optioneel)
+## MakerWorld model (optional)
 
-Alleen als je een printbare houder/bezel meelevert.
+Only if you ship a printable holder / bezel.
 
-**Beschrijving (kopiëren)**
+**Description (copy)**
 
 ```md
-MakerPulse — MakerWorld-stats op een Cheap Yellow Display (ESP32-2432S028).
+MakerPulse — MakerWorld stats on a Cheap Yellow Display (ESP32-2432S028).
 
-Het scherm toont downloads, likes, prints, boosts, collecties en comments.
-Bij een verandering stuurt de module zelf een Telegram-bericht.
-Home Assistant kan de backlight (aan/uit + helderheid) via MQTT.
+The screen shows downloads, likes, prints, boosts, collections and comments.
+When a value changes, the module sends a Telegram message itself.
+Home Assistant can control the backlight (on/off + brightness) over MQTT.
 
-## Wat je nodig hebt
-- ESP32-2432S028 (CYD 2,8")
-- USB-datakabel
-- WiFi
-- (optioneel) Telegram-bot, MQTT/Home Assistant
+## What you need
+- ESP32-2432S028 (CYD 2.8")
+- USB data cable
+- Wi-Fi
+- (optional) Telegram bot, MQTT / Home Assistant
 
-## Aan de slag
-1. Open de configurator: <JOUW-GROK.ME-URL>
-2. Koppel je MakerWorld-profiel, vul WiFi (en optioneel Telegram/MQTT) in.
-3. Download MakerPulse_CYD.zip en flash met Arduino IDE.
-4. Zet de CYD in deze geprinte houder.
+## Getting started
+1. Open the configurator: <YOUR-GROK.ME-URL>
+2. Link your MakerWorld profile, fill in Wi-Fi (and optionally Telegram/MQTT).
+3. Download MakerPulse_CYD.zip and flash with Arduino IDE.
+4. Put the CYD in this printed holder.
 
-Bron en updates: https://github.com/leon199219/MakerPulse-CYD
+Source and updates: https://github.com/leon199219/MakerPulse-CYD
 
-De module praat daarna zelf met MakerWorld. Er draait niets in de cloud van iemand anders.
+The module then talks to MakerWorld on its own. Nothing runs in someone else's cloud.
 ```
 
 **Tags:** ESP32, CYD, MakerWorld, dashboard, Bambu, Home Assistant

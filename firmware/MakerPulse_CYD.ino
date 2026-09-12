@@ -1,24 +1,24 @@
 // MakerPulse CYD 2026.09.12a
 #define MAKERPULSE_FW "2026.09.12a"
 /*
- * ========== WAT MOET JE AANPASSEN? ==========
+ * ========== WHAT DO YOU NEED TO CHANGE? ==========
  *
- * A) Zip uit de MakerPulse-configurator
- *    Niets. WiFi, MakerWorld-ID, Telegram en MQTT staan al in config.h.
- *    Kies bord "ESP32 Dev Module" en klik Uploaden.
+ * A) Zip from the MakerPulse configurator
+ *    Nothing. Wi-Fi, MakerWorld ID, Telegram and MQTT are already in config.h.
+ *    Choose board "ESP32 Dev Module" and click Upload.
  *
- * B) Van GitHub / zonder configurator
- *    1. Kopieer config.h.example naar config.h (dezelfde map als dit .ino).
- *    2. Open config.h — elke regel heeft een Nederlandse uitleg.
- *    3. Vervang JOUW_WIFI_NAAM, JOUW_WIFI_WACHTWOORD en MAKERWORLD_UID 0UL.
- *    Of: geen config.h? Vul dan het blok "Handmatige instellingen" hieronder in.
+ * B) From GitHub / without the configurator
+ *    1. Copy config.h.example to config.h (same folder as this .ino).
+ *    2. Open config.h — every line has an English comment.
+ *    3. Replace JOUW_WIFI_NAAM, JOUW_WIFI_WACHTWOORD and MAKERWORLD_UID 0UL.
+ *    Or: no config.h? Fill in the "Manual settings" block below.
  *
- * Arduino IDE (eenmalig):
- *    Bord: ESP32 Dev Module · Flash 4MB · Partition "Default 4MB with spiffs"
+ * Arduino IDE (once):
+ *    Board: ESP32 Dev Module · Flash 4MB · Partition "Default 4MB with spiffs"
  *    Libraries: LovyanGFX, ArduinoJson 7, PubSubClient
- *    Zet de map op C:\MakerPulse_CYD\ (geen spaties, geen OneDrive).
+ *    Put the folder at C:\MakerPulse_CYD\ (no spaces, no OneDrive).
  *
- * Laat mp_types.h in deze map staan. De rest van deze sketch niet wijzigen.
+ * Keep mp_types.h in this folder. Do not edit the rest of this sketch.
  * ============================================
  */
 #define LGFX_USE_V1
@@ -42,7 +42,7 @@
 #endif
 #include "mp_types.h"
 
-// --- Handmatige instellingen: alleen als config.h ontbreekt. ---
+// --- Manual settings: only used when config.h is missing. ---
 #ifndef WIFI_SSID
 #define WIFI_SSID "JOUW_WIFI_NAAM"
 #endif
