@@ -19,27 +19,9 @@ docker compose up -d --build
 
 Daarna: `http://SERVER-IP:3080`
 
-## In je bestaande compose
+## In je compose
 
-`makerpulse` moet een **eigen service** zijn, op hetzelfde niveau als je andere namen (`ha-mcp`, `homeassistant`, …). Niet erin plakken.
-
-Fout (dit geeft `additional properties 'makerpulse' not allowed`):
-
-```yaml
 services:
-  ha-mcp:
-    image: ...
-    makerpulse:          # verkeerd: genest
-      build: ./makerpulse
-```
-
-Goed:
-
-```yaml
-services:
-  ha-mcp:
-    image: ...
-
   makerpulse:
     build: ./makerpulse
     image: makerpulse:local
