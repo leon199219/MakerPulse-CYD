@@ -14,10 +14,10 @@ Na het flashen praat de CYD zelf met MakerWorld. Je browser mag dicht.
 
 ## Wat het doet
 
-- Zes cijfers op het 2,8"-scherm (240×320)
-- Telegram bij échte verandering (eerste start is stil)
+- Zes entiteiten op het 2,8"-scherm (240×320)
+- Telegram bij verandering 
 - Per model de titel in het bericht, niet alleen de vastgepinde
-- MQTT → Home Assistant-lamp (aan/uit + helderheid 0–255)
+- MQTT → Home Assistant-schermverlichting (aan/uit + helderheid 0–255)
 - HTTP-endpoint `/light` als je geen broker wilt
 - Onvolledige comment-telling wordt niet overgenomen (`gevonden/totaal` onderaan)
 
@@ -78,7 +78,6 @@ docker compose up -d --build
 
 Poort 3080, geen database, geen login. Handleiding: [DOCKER.md](DOCKER.md).
 
-Jouw thuis-Docker en DuckDNS blijven privé.
 
 ## Map
 
@@ -100,7 +99,7 @@ Zie [SECURITY.md](SECURITY.md).
 
 - geen `config.h` met WiFi / Telegram-token / MQTT-wachtwoord
 - geen persoonlijke `MakerPulse_CYD.zip`
-- geen DuckDNS, intern HA-IP of compose met geheimen
+- geen intern HA-IP of compose met geheimen
 
 ## Licentie
 
