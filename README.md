@@ -23,25 +23,9 @@ Na het flashen praat de CYD zelf met MakerWorld. Je browser mag dicht.
 
 Geen MakerWorld-login, geen cloud van iemand anders. Alleen publieke profiel- en modeldata.
 
-## Twee manieren om te flashen
 
-### A. Configurator (aanbevolen)
-
-De web-GUI vult `config.h` voor je in. Niets in de sketch aanpassen.
-
-1. Open je gepubliceerde Grok-link (`*.grok.me`).
-2. Plak een modellink of je MakerWorld-gebruikers-ID.
-3. Vul WiFi in (2,4 GHz). Optioneel: Telegram en MQTT.
-4. Download `MakerPulse_CYD.zip`.
-5. Flash — zie [firmware/README.md](firmware/README.md).
-
-> Na een firmware-fix: **opnieuw publiceren** op Grok, anders blijft de oude zip online.
->
-> Zet je `*.grok.me`-URL hier als je de README forkt: _nog niet ingevuld_.
-
-![Configurator](docs/configurator.png)
-
-### B. Rechtstreeks vanaf deze repo
+Installeer met Arduino IDE
+### Rechtstreeks vanaf deze repo
 
 1. Clone of download de repo.
 2. Kopieer [`firmware/config.h.example`](firmware/config.h.example) → `firmware/config.h`.
@@ -81,7 +65,8 @@ Na het flashen staat het IP rechtsonder op het scherm (`makerpulse-cyd.local`).
 
 **HTTP:** `POST http://makerpulse-cyd.local/light` met `{"state":"ON","brightness":255}`. Details in [firmware/README.md](firmware/README.md).
 
-## Configurator zelf hosten
+## OPTIONEEL ##
+## WEB-GUI Configurator zelf hosten via Docker (Incl. docker-compose.yml) ##
 
 De GUI is **geen** GitHub Pages-site: er is een server nodig (MakerWorld + zip).
 
