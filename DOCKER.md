@@ -1,4 +1,4 @@
-# MakerPulse in Docker
+# ## OPTIONEEL ## MakerPulse in Docker
 
 De configurator (profiel koppelen, firmware-zip, Telegram-test) draait als container. De CYD zelf heeft deze pagina niet nodig — die praat rechtstreeks met MakerWorld.
 
