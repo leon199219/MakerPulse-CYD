@@ -50,13 +50,14 @@ Kies de juiste poort (USB).
 1. Open `MakerPulse_CYD.ino` (laat `config.h`, `config.h.example` en `mp_types.h` in dezelfde map).
    - Zip uit de configurator: **niets aanpassen**, alleen Uploaden.
    - Van GitHub: kopieer `config.h.example` → `config.h` en vul WiFi + MakerWorld-ID in (elke regel heeft uitleg).
+        -  Of pas handmatig aan: `MakerPulse_CYD.ino` >> Regel 45  // --- Handmatige instellingen
 2. Sluit de CYD aan.
 3. Sketch → Uploaden.
 4. Blijft hij hangen op "Connecting..."? Houd **BOOT** in, tik **RST**, laat BOOT los, en upload opnieuw.
 
 Na een geslaagde upload start het scherm met WiFi → MakerWorld → je zes cijfers.
 
-## 5. Scherm ziet er gek uit
+## 5. Scherm ziet er gek uit ## TROUBLESHOOTING
 
 Niet de sketch in Arduino draaien — kies de stand in de configurator, download opnieuw en flash opnieuw.
 
