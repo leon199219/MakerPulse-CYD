@@ -14,7 +14,7 @@ After flashing, the CYD talks to MakerWorld on its own. You can close the browse
 
 ---
 
-## Also: web dashboard (Docker)
+## (different project) Also see this self-hosted Docker container: web dashboard (Docker)
 
 Prefer charts, history per model, and a period picker in the browser? That is a separate project: **[MakerPulse](https://github.com/leon199219/makerpulse)** — self-hosted Docker analytics.
 
