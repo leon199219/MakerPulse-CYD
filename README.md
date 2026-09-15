@@ -33,7 +33,7 @@ The CYD firmware and the dashboard are independent. Run the screen, the web UI, 
 
 ---
 
-## What it does
+## This project (CYD): What it does
 
 - Six entities on the 2.8" screen (240×320)
 - Telegram on change
