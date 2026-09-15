@@ -1,4 +1,5 @@
 # MakerPulse
+<img width="1920" height="1440" alt="afbeelding" src="https://github.com/user-attachments/assets/cbe42d65-006b-4494-a9cb-f376ede01638" />
 
 MakerWorld statistics on a Cheap Yellow Display ([ESP32-2432S028](https://github.com/witnessmenow/ESP32-Cheap-Yellow-Display)).
 
