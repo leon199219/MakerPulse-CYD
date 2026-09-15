@@ -1,13 +1,17 @@
-# OPTIONAL — MakerPulse in Docker
+# OPTIONAL — Firmware configurator in Docker
 
-The configurator (link a profile, firmware zip, Telegram test) runs as a container. The CYD itself does not need this page — it talks to MakerWorld directly.
+This file is the **CYD firmware configurator** (link a profile, firmware zip, Telegram test). It is **not** the analytics dashboard.
+
+Want charts, history, and `ghcr.io/leon199219/makerpulse:latest`? That project is **[MakerPulse](https://github.com/leon199219/makerpulse)**.
+
+The CYD itself does not need this page — it talks to MakerWorld directly.
 
 ## Which package?
 
 | You have | What to do |
 | --- | --- |
 | `makerpulse-docker.zip` (from the configurator) | Unzip, then follow the block below |
-| This GitHub repo only | Contains the firmware, **not** the Node app. Download the Docker zip from the configurator |
+| This GitHub repo only | Contains the firmware, **not** the Node configurator. Download the Docker zip from the configurator |
 
 A clone of [MakerPulse-CYD](https://github.com/leon199219/MakerPulse-CYD) will not build this image: `src/` is intentionally not on GitHub.
 
@@ -51,7 +55,7 @@ Change `3080` if that port is already taken. Behind a reverse proxy (nginx, Cadd
 
 The sketch is baked into the image (at `--build`). A new `MakerPulse_CYD.zip` from an old container is therefore also old.
 
-After a MakerPulse update:
+After a MakerPulse configurator update:
 
 1. Download `makerpulse-docker.zip` again.
 2. Replace the `makerpulse` folder (e.g. `/opt/makerpulse`).
