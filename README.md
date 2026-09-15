@@ -19,6 +19,8 @@ After flashing, the CYD talks to MakerWorld on its own. You can close the browse
 Prefer charts, history per model, and a period picker in the browser? That is a separate project: **[MakerPulse](https://github.com/leon199219/makerpulse)** — self-hosted Docker analytics.
 
 [![MakerPulse dashboard](https://raw.githubusercontent.com/leon199219/makerpulse/main/screenshots/home.png)](https://github.com/leon199219/makerpulse)
+<img width="3302" height="1837" alt="afbeelding" src="https://github.com/user-attachments/assets/ab4658ea-b477-4276-bda4-f507bf1b82f3" />
+
 
 ```yaml
 services:
