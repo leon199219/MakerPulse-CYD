@@ -9,7 +9,9 @@ The sketch shows your MakerWorld stats on the 2.8" screen (downloads, likes, pri
 - ESP32-2432S028 (Cheap Yellow Display, 240×320)
 - USB cable that carries data (not charge-only)
 - Arduino IDE 2
-- Wi-Fi and a Telegram bot
+- Wi-Fi
+- A MakerWorld profile (public user ID — see below)
+- Optional: Telegram bot
 
 ## 1. Set up Arduino IDE
 
@@ -45,7 +47,31 @@ If you leave it in Downloads (`MakerPulse_CYD (1)` or OneDrive) you get:
 
 Select the correct port (USB).
 
-## 4. Flashing
+## 4. MakerWorld account (`MAKERWORLD_UID`)
+
+MakerPulse does not create this number. Bambu/MakerWorld assigns it to your account. The CYD uses it to fetch **public** profile and model stats — no MakerWorld login is stored on the device.
+
+1. Sign in at [makerworld.com](https://makerworld.com) and open **your profile** (click your avatar or name).
+2. Copy the number from the address bar:
+
+| Profile URL | `MAKERWORLD_UID` |
+| --- | --- |
+| `makerworld.com/en/u/`**`3535571310`** | `3535571310` |
+| `makerworld.com/@user_`**`1108927811`** | `1108927811` |
+
+3. In `config.h`:
+
+```c
+#define MAKERWORLD_UID 3535571310UL
+```
+
+Keep the `UL` suffix. Set `MAKER_NAME` to the short name you want on the screen.
+
+A model link such as `makerworld.com/en/models/1841486-…` is a **model ID**, not your UID. From that page, click your own name; the profile URL then has the UID.
+
+A handle only (`@YourName`) is not enough — MakerWorld does not publish handles as a number. If you use the configurator, paste a model link and it reads `designCreator.uid` for you.
+
+## 5. Flashing
 
 1. Open `MakerPulse_CYD.ino` (leave `config.h`, `config.h.example` and `mp_types.h` in the same folder).
    - Zip from the configurator: **change nothing**, just Upload.
@@ -57,7 +83,7 @@ Select the correct port (USB).
 
 After a successful upload the screen starts with Wi-Fi → MakerWorld → your six figures.
 
-## 5. The screen looks wrong ## TROUBLESHOOTING
+## 6. The screen looks wrong ## TROUBLESHOOTING
 
 Do not rotate the sketch in Arduino — pick the orientation in the configurator, download again and flash again.
 
@@ -66,7 +92,7 @@ Do not rotate the sketch in Arduino — pick the orientation in the configurator
 - Colors inverted or very washed out: **Invert colors**.
 - Completely white/black: USB cable and power.
 
-## 6. Telegram
+## 7. Telegram
 
 1. In Telegram: search **@BotFather** → `/newbot` → copy the token.
 2. Open your new bot and tap **Start**.
@@ -75,7 +101,7 @@ Do not rotate the sketch in Arduino — pick the orientation in the configurator
 
 The CYD stores the last figures in flash. The first boot does not send a notification; after that only a real change does. The message names the title of **every** model whose downloads, likes, prints, boosts, collections or comments changed — not only the pinned one. Comments is the sum of **all** published models. The bottom of the screen shows `gevonden/totaal` (e.g. `48/48`); red means that round's count was incomplete and the previous total is kept.
 
-## 7. Home Assistant — screen on/off and brightness
+## 8. Home Assistant — screen on/off and brightness
 
 After flashing, the CYD shows its IP at the bottom-right of the screen.
 
@@ -110,6 +136,6 @@ Status: `http://makerpulse-cyd.local/light` or `http://IP/light`.
 | --- | --- |
 | `bootloader.bin was unexpected at this time` | Move the folder to `C:\MakerPulse_CYD\`. No spaces, no parentheses, no OneDrive/Downloads. |
 | Wi-Fi failed | SSID/password, 2.4 GHz (not 5 GHz) |
-| MakerWorld offline | UID, internet |
+| MakerWorld offline | UID from your **profile** URL (`/u/…`), internet |
 | Telegram failed | Token, chat ID, /start tapped |
 | Upload fails | Data cable, CH340 driver, BOOT button |

@@ -1,7 +1,5 @@
 # MakerPulse
 
-<img width="1920" height="1440" alt="MakerPulse CYD" src="https://github.com/user-attachments/assets/cbe42d65-006b-4494-a9cb-f376ede01638" />
-
 MakerWorld statistics on a Cheap Yellow Display ([ESP32-2432S028](https://github.com/witnessmenow/ESP32-Cheap-Yellow-Display)).
 
 ![MakerPulse on the CYD screen](docs/cyd.png)
@@ -14,27 +12,14 @@ After flashing, the CYD talks to MakerWorld on its own. You can close the browse
 
 ---
 
-## (different project) Also see this self-hosted Docker container: web dashboard (Docker)
-
-Prefer charts, history per model, and a period picker in the browser? That is a separate project: **[MakerPulse](https://github.com/leon199219/makerpulse)** — self-hosted Docker analytics.
-
-[![MakerPulse dashboard](https://raw.githubusercontent.com/leon199219/makerpulse/main/screenshots/home.png)](https://github.com/leon199219/makerpulse)
-<img width="3302" height="1837" alt="afbeelding" src="https://github.com/user-attachments/assets/ab4658ea-b477-4276-bda4-f507bf1b82f3" />
-
-
-
-The CYD firmware and the dashboard are independent. Run the screen, the web UI, or both.
-
----
-
-## This project (CYD): What it does
+## What it does
 
 - Six entities on the 2.8" screen (240×320)
 - Telegram on change
 - Each affected model's title in the message, not only the pinned one
 - MQTT → Home Assistant display backlight (on/off + brightness 0–255)
 - HTTP endpoint `/light` if you do not want a broker
-- Incomplete comment counts are discarded (`found/total` at the bottom of the screen)
+- Incomplete comment counts are discarded (`gevonden/totaal` at the bottom of the screen)
 
 No MakerWorld login, no third-party cloud. Public profile and model data only.
 
@@ -44,11 +29,11 @@ No MakerWorld login, no third-party cloud. Public profile and model data only.
 
 1. Clone or download the repo.
 2. Copy [`firmware/config.h.example`](firmware/config.h.example) → `firmware/config.h`.
-3. Fill in the Wi-Fi name, password and `MAKERWORLD_UID` (every line has a comment).
+3. Fill in the Wi-Fi name, password and `MAKERWORLD_UID` (the number in your MakerWorld profile URL `/u/…` — see [firmware/README.md](firmware/README.md#4-makerworld-account-makerworld_uid)).
 4. Open `firmware/MakerPulse_CYD.ino` in Arduino IDE 2.
 5. Board **ESP32 Dev Module**, flash **4MB**, partition **Default 4MB with spiffs**.
 6. Libraries: **LovyanGFX**, **ArduinoJson 7**, **PubSubClient**.
-7. Put the folder on a path with no spaces, e.g. `C:\\MakerPulse_CYD\\`.
+7. Put the folder on a path with no spaces, e.g. `C:\MakerPulse_CYD\`.
 
 Full steps, Telegram, MQTT and troubleshooting: [firmware/README.md](firmware/README.md).
 
@@ -76,15 +61,17 @@ The CYD stores the last values in flash. Only a real delta triggers a message.
 
 After flashing, the IP is shown at the bottom-right of the screen (`makerpulse-cyd.local`).
 
-**MQTT (recommended):** Mosquitto in HA, host/user/password in MakerPulse, flash again. The light **MakerPulse display** then appears under MQTT devices.
+**MQTT (recommended):** Mosquitto in HA, host/user/password in MakerPulse, flash again. The light **MakerPulse scherm** then appears under MQTT devices.
 
 **HTTP:** `POST http://makerpulse-cyd.local/light` with `{"state":"ON","brightness":255}`. Details in [firmware/README.md](firmware/README.md).
 
-## Optional: firmware configurator (Docker)
+## OPTIONAL
 
-The GUI is **not** a GitHub Pages site: it needs a server (MakerWorld + zip). This is **not** the [analytics dashboard](https://github.com/leon199219/makerpulse).
+## Web GUI configurator — self-host with Docker (includes docker-compose.yml)
 
-This public repo is the **Arduino firmware**. The Node configurator lives in `makerpulse-docker.zip`, downloaded from the configurator. Unzip and:
+The GUI is **not** a GitHub Pages site: it needs a server (MakerWorld + zip).
+
+This public repo is the **Arduino firmware**. The Node app lives in `makerpulse-docker.zip`, downloaded from the configurator. Unzip and:
 
 ```bash
 docker compose up -d --build

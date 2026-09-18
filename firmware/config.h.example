@@ -5,7 +5,7 @@
 // --- required ---
 #define WIFI_SSID "JOUW_WIFI_NAAM"            // 2.4 GHz network (not 5 GHz)
 #define WIFI_PASSWORD "JOUW_WIFI_WACHTWOORD"  // Wi-Fi password
-#define MAKERWORLD_UID 0UL                    // number from makerworld.com/.../u/THISNUMBER
+#define MAKERWORLD_UID 0UL                    // from your profile: makerworld.com/en/u/THISNUMBER
 #define MAKER_NAME "Maker"                    // name at the top of the screen (keep it short)
 
 // --- Telegram (leave empty = no messages) ---
