@@ -22,12 +22,6 @@ Prefer charts, history per model, and a period picker in the browser? That is a 
 <img width="3302" height="1837" alt="afbeelding" src="https://github.com/user-attachments/assets/ab4658ea-b477-4276-bda4-f507bf1b82f3" />
 
 
-```yaml
-services:
-  makerpulse:
-    image: ghcr.io/leon199219/makerpulse:latest
-    pull_policy: always
-```
 
 The CYD firmware and the dashboard are independent. Run the screen, the web UI, or both.
 
