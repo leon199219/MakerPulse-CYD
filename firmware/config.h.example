@@ -1,12 +1,22 @@
 #pragma once
 // MakerPulse — settings. Copy this file to config.h and fill it in.
 // Then in Arduino IDE: Sketch → Upload. Keep mp_types.h next to this file.
+//
+// MAKERWORLD_UID is the numeric account id (~10 digits). Not @handle, not a model id.
+// Fastest: sign in on makerworld.com, F12 → Console, paste:
+//   fetch("/api/v1/design-user-service/my/preference")
+//     .then(r => r.json())
+//     .then(d => { console.log("UID:", d.uid); copy(String(d.uid)); });
+// Other: @user_1298228011 → 1298228011
+//        avatar URL /avatar/4044076662/ → 4044076662
+//        on your model page, designCreator.uid
+// Use digits only, no @ and no user_. See firmware/README.md.
 
 // --- required ---
 #define WIFI_SSID "JOUW_WIFI_NAAM"            // 2.4 GHz network (not 5 GHz)
 #define WIFI_PASSWORD "JOUW_WIFI_WACHTWOORD"  // Wi-Fi password
-#define MAKERWORLD_UID 0UL                    // from your profile: makerworld.com/en/u/THISNUMBER
-#define MAKER_NAME "Maker"                    // name at the top of the screen (keep it short)
+#define MAKERWORLD_UID 0UL                    // numeric uid from the console snippet above
+#define MAKER_NAME "Maker"                    // screen label only (handle is fine here)
 
 // --- Telegram (leave empty = no messages) ---
 #define TELEGRAM_BOT_TOKEN ""                 // from @BotFather after /newbot

@@ -44,13 +44,46 @@ No MakerWorld login, no third-party cloud. Public profile and model data only.
 
 1. Clone or download the repo.
 2. Copy [`firmware/config.h.example`](firmware/config.h.example) → `firmware/config.h`.
-3. Fill in the Wi-Fi name, password and `MAKERWORLD_UID` (the number in your MakerWorld profile URL `/u/…` — see [firmware/README.md](firmware/README.md#4-makerworld-account-makerworld_uid)).
+3. Fill in the Wi-Fi name, password and `MAKERWORLD_UID` (see [Find your MakerWorld UID](#find-your-makerworld-uid)).
 4. Open `firmware/MakerPulse_CYD.ino` in Arduino IDE 2.
 5. Board **ESP32 Dev Module**, flash **4MB**, partition **Default 4MB with spiffs**.
 6. Libraries: **LovyanGFX**, **ArduinoJson 7**, **PubSubClient**.
 7. Put the folder on a path with no spaces, e.g. `C:\\MakerPulse_CYD\\`.
 
 Full steps, Telegram, MQTT and troubleshooting: [firmware/README.md](firmware/README.md).
+
+## Find your MakerWorld UID
+
+`MAKERWORLD_UID` is the numeric account number (~10 digits). Not `@Le0n._.`, not a model id, not `#profileId-…`. Use **only the digits**, without `@` and without `user_`.
+
+### Fastest method (recommended)
+
+1. Go to [makerworld.com](https://makerworld.com) and sign in.
+2. Press **F12** → **Console** tab.
+3. Paste this and press Enter:
+
+```javascript
+fetch("/api/v1/design-user-service/my/preference")
+  .then(r => r.json())
+  .then(d => { console.log("UID:", d.uid); copy(String(d.uid)); });
+```
+
+Your UID appears in the console and is copied. Paste that number into `MAKERWORLD_UID`.
+
+That `uid` field is the numeric account number that tracking projects expect (about 10 digits).
+
+### Faster still, without the API
+
+- Handle looks like `@user_1298228011`? Then `1298228011` is usually already your UID.
+- Avatar: open your profile, right-click the photo → **Copy image address**. The URL often contains `/avatar/4044076662/` — that number is your UID.
+- Open one of **your own** models. In the page source or the Network tab you will find `designCreator.uid`.
+
+```c
+#define MAKERWORLD_UID 3384175483UL
+#define MAKER_NAME "Le0n._."
+```
+
+`MAKER_NAME` is only the label on the screen. Details: [firmware/README.md](firmware/README.md#4-makerworld-account-makerworld_uid).
 
 ## Hardware
 

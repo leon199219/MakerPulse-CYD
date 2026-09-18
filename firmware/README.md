@@ -51,25 +51,39 @@ Select the correct port (USB).
 
 MakerPulse does not create this number. Bambu/MakerWorld assigns it to your account. The CYD uses it to fetch **public** profile and model stats — no MakerWorld login is stored on the device.
 
-1. Sign in at [makerworld.com](https://makerworld.com) and open **your profile** (click your avatar or name).
-2. Copy the number from the address bar:
+Use **only the digits**, without `@` and without `user_`. A handle such as `@Le0n._.` is not a UID. A model URL (`/models/3206534-…#profileId-3629145`) is a model / print-profile ID, not your account number.
 
-| Profile URL | `MAKERWORLD_UID` |
-| --- | --- |
-| `makerworld.com/en/u/`**`3535571310`** | `3535571310` |
-| `makerworld.com/@user_`**`1108927811`** | `1108927811` |
+### Fastest method (recommended)
 
-3. In `config.h`:
+1. Go to [makerworld.com](https://makerworld.com) and sign in.
+2. Press **F12** → **Console** tab.
+3. Paste this and press Enter:
 
-```c
-#define MAKERWORLD_UID 3535571310UL
+```javascript
+fetch("/api/v1/design-user-service/my/preference")
+  .then(r => r.json())
+  .then(d => { console.log("UID:", d.uid); copy(String(d.uid)); });
 ```
 
-Keep the `UL` suffix. Set `MAKER_NAME` to the short name you want on the screen.
+Your UID appears in the console and is copied to the clipboard. Paste that number into `MAKERWORLD_UID`.
 
-A model link such as `makerworld.com/en/models/1841486-…` is a **model ID**, not your UID. From that page, click your own name; the profile URL then has the UID.
+That `uid` field is the numeric account number that tracking projects expect (about 10 digits).
 
-A handle only (`@YourName`) is not enough — MakerWorld does not publish handles as a number. If you use the configurator, paste a model link and it reads `designCreator.uid` for you.
+### Faster still, without the API
+
+- Handle looks like `@user_1298228011`? Then `1298228011` is usually already your UID.
+- Avatar: open your profile, right-click the photo → **Copy image address**. The URL often contains `/avatar/4044076662/` — that number is your UID.
+- Open one of **your own** models. In the page source or the Network tab you will find `designCreator.uid`.
+- If the address bar shows `/u/3535571310`, that number is the UID.
+
+In `config.h`:
+
+```c
+#define MAKERWORLD_UID 3384175483UL
+#define MAKER_NAME "Le0n._."
+```
+
+Keep the `UL` suffix. `MAKER_NAME` is only the label on the screen (a handle is fine there). `MAKERWORLD_UID` must stay the numeric id.
 
 ## 5. Flashing
 
@@ -136,6 +150,6 @@ Status: `http://makerpulse-cyd.local/light` or `http://IP/light`.
 | --- | --- |
 | `bootloader.bin was unexpected at this time` | Move the folder to `C:\MakerPulse_CYD\`. No spaces, no parentheses, no OneDrive/Downloads. |
 | Wi-Fi failed | SSID/password, 2.4 GHz (not 5 GHz) |
-| MakerWorld offline | UID from your **profile** URL (`/u/…`), internet |
+| MakerWorld offline | Numeric `MAKERWORLD_UID` (console snippet / avatar URL), internet |
 | Telegram failed | Token, chat ID, /start tapped |
 | Upload fails | Data cable, CH340 driver, BOOT button |
