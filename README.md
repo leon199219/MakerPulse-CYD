@@ -54,7 +54,7 @@ Full steps, Telegram, MQTT and troubleshooting: [firmware/README.md](firmware/RE
 
 ## Find your MakerWorld UID
 
-`MAKERWORLD_UID` is the numeric account number (~10 digits). Not `@Le0n._.`, not a model id, not `#profileId-…`. Use **only the digits**, without `@` and without `user_`.
+`MAKERWORLD_UID` is the numeric account number (~10 digits). Not `@YourName`, not a model id, not `#profileId-…`. Use **only the digits**, without `@` and without `user_`.
 
 ### Fastest method (recommended)
 
@@ -79,8 +79,8 @@ That `uid` field is the numeric account number that tracking projects expect (ab
 - Open one of **your own** models. In the page source or the Network tab you will find `designCreator.uid`.
 
 ```c
-#define MAKERWORLD_UID 3384175483UL
-#define MAKER_NAME "Le0n._."
+#define MAKERWORLD_UID 1298228011UL
+#define MAKER_NAME "Maker"
 ```
 
 `MAKER_NAME` is only the label on the screen. Details: [firmware/README.md](firmware/README.md#4-makerworld-account-makerworld_uid).

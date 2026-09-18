@@ -51,7 +51,7 @@ Select the correct port (USB).
 
 MakerPulse does not create this number. Bambu/MakerWorld assigns it to your account. The CYD uses it to fetch **public** profile and model stats — no MakerWorld login is stored on the device.
 
-Use **only the digits**, without `@` and without `user_`. A handle such as `@Le0n._.` is not a UID. A model URL (`/models/3206534-…#profileId-3629145`) is a model / print-profile ID, not your account number.
+Use **only the digits**, without `@` and without `user_`. A handle such as `@YourName` is not a UID. A model URL (`/models/1841486-…#profileId-1234567`) is a model / print-profile ID, not your account number.
 
 ### Fastest method (recommended)
 
@@ -79,8 +79,8 @@ That `uid` field is the numeric account number that tracking projects expect (ab
 In `config.h`:
 
 ```c
-#define MAKERWORLD_UID 3384175483UL
-#define MAKER_NAME "Le0n._."
+#define MAKERWORLD_UID 1298228011UL
+#define MAKER_NAME "Maker"
 ```
 
 Keep the `UL` suffix. `MAKER_NAME` is only the label on the screen (a handle is fine there). `MAKERWORLD_UID` must stay the numeric id.
