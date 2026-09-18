@@ -2,7 +2,7 @@
 
 This folder is the Arduino sketch. Clone the repo and open `MakerPulse_CYD.ino` here, or download a zip from the configurator (then `config.h` is already filled in).
 
-The sketch shows your MakerWorld stats on the 2.8" screen (downloads, likes, prints, boosts, collections, comments) and sends a Telegram message on changes, including the model title. Comments is the total of all your published models, not just the featured ones. The module keeps checking on its own — you can close the browser.
+The sketch shows your MakerWorld stats on the 2.8" screen (downloads, likes, prints, boosts, collections, comments) and sends a Telegram message on changes, including the model title. The module keeps checking on its own — you can close the browser.
 
 ## What you need
 
