@@ -84,6 +84,7 @@ Leave `JOUW_WIFI_NAAM` / `JOUW_WIFI_WACHTWOORD` / `MAKERWORLD_UID 0` and the CYD
 | --- | --- |
 | `TELEGRAM_BOT_TOKEN` | From [@BotFather](https://t.me/BotFather) after `/newbot`. Empty = no messages. |
 | `TELEGRAM_CHAT_ID` | Your chat id (a number, sometimes negative). Empty = no messages. |
+| `TELEGRAM_INTERVAL_SEC` | `0` = one summary per check. Or `3600` (1 h), `21600` (6 h), `86400` (24 h). |
 | `POLL_INTERVAL_SEC` | How often to check MakerWorld: `120`, `300`, `600` or `900`. |
 | `CYD_ROTATION` | `0` USB bottom, `1` USB left, `2` USB top, `3` USB right. |
 | `CYD_INVERT` | `1` if colours look negative / washed out. |
@@ -151,7 +152,10 @@ Change these in **`config.h`**, save, and flash again. Do not rotate the sketch 
 1. In Telegram: search **@BotFather** → `/newbot` → copy the token.
 2. Open your new bot and tap **Start**.
 3. Put the token and chat ID in `config.h` (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`) — or in the configurator before you download the zip.
-4. Flash again. Send a test from the configurator if you use it.
+4. Choose the summary period: `TELEGRAM_INTERVAL_SEC` `0` (same as the check interval), `3600`, `21600` (6 hours) or `86400`.
+5. Flash again. Send a test from the configurator if you use it.
+
+Each option is the same kind of message: **one summary of that period**, not a ping on every small change in between. It lists every statistic you turned on (current total and the change over the period) and, under that, each model that moved. A quiet period sends nothing. The screen still updates on the check interval; only Telegram waits.
 
 The CYD stores the last figures in flash. The first boot does not send a notification; after that only a real change does. The message names the title of **every** model whose downloads, likes, prints, boosts, collections or comments changed — not only the pinned one. Comments is the sum of **all** published models. The bottom of the screen shows `gevonden/totaal` (e.g. `48/48`); red means that round's count was incomplete and the previous total is kept.
 

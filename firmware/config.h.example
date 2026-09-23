@@ -21,6 +21,7 @@
 // --- Telegram (leave empty = no messages) ---
 #define TELEGRAM_BOT_TOKEN ""                 // from @BotFather after /newbot
 #define TELEGRAM_CHAT_ID ""                   // your chat id (number, often - or positive)
+#define TELEGRAM_INTERVAL_SEC 0               // 0 = each check. Or 3600, 21600 (6 h), 86400. One summary of that period.
 
 // --- display ---
 #define POLL_INTERVAL_SEC 300                 // check every 300 seconds (120 / 300 / 600 / 900)

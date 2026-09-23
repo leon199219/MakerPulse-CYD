@@ -1,5 +1,5 @@
-// MakerPulse CYD 2026.09.23a
-#define MAKERPULSE_FW "2026.09.23a"
+// MakerPulse CYD 2026.09.23b
+#define MAKERPULSE_FW "2026.09.23b"
 /*
  * ========== WHAT DO YOU NEED TO CHANGE? ==========
  *
@@ -63,6 +63,9 @@
 #endif
 #ifndef POLL_INTERVAL_SEC
 #define POLL_INTERVAL_SEC 300
+#endif
+#ifndef TELEGRAM_INTERVAL_SEC
+#define TELEGRAM_INTERVAL_SEC 0
 #endif
 #ifndef CYD_INVERT
 #define CYD_INVERT 0
@@ -203,6 +206,8 @@ int prevAllSnapCount = 0;
 ModelAlert alerts[MAX_ALERTS];
 int alertCount = 0;
 bool hasBaseline = false;
+time_t lastDigestUnix = 0;
+unsigned long lastDigestMs = 0;
 char makerName[24] = MAKER_NAME;
 char lastError[40] = "";
 bool lastOk = false;
@@ -1110,18 +1115,80 @@ void appendAlertLine(String& s, const char* label, long d) {
   s += "\n";
 }
 
+String periodLabel(unsigned long sec) {
+  if (sec >= 5400) {
+    unsigned long h = (sec + 1800UL) / 3600UL;
+    if (h < 1) h = 1;
+    return String(h) + " uur";
+  }
+  unsigned long m = (sec + 30UL) / 60UL;
+  if (m < 1) m = 1;
+  return String(m) + " min";
+}
+
+unsigned long telegramEverySec() {
+  unsigned long every = (unsigned long)TELEGRAM_INTERVAL_SEC;
+  unsigned long poll = (unsigned long)POLL_INTERVAL_SEC;
+  if (every < poll) every = poll;
+  return every;
+}
+
+bool clockReady() {
+  return time(nullptr) > 1700000000L;
+}
+
+void persistDigest() {
+  if (!clockReady() || lastDigestUnix <= 0) return;
+  prefs.begin("pulse", false);
+  prefs.putLong("tgat", (long)lastDigestUnix);
+  prefs.end();
+}
+
+void stampDigest() {
+  lastDigestMs = millis();
+  if (clockReady()) {
+    lastDigestUnix = time(nullptr);
+    persistDigest();
+  }
+}
+
+bool digestDue() {
+  unsigned long every = telegramEverySec();
+  if (clockReady()) {
+    if (lastDigestUnix <= 0) {
+      stampDigest();
+      return false;
+    }
+    return (unsigned long)(time(nullptr) - lastDigestUnix) >= every;
+  }
+  if (lastDigestMs == 0) return false;
+  return (millis() - lastDigestMs) >= every * 1000UL;
+}
+
+unsigned long digestElapsedSec() {
+  if (clockReady() && lastDigestUnix > 0) {
+    time_t now = time(nullptr);
+    if (now > lastDigestUnix) return (unsigned long)(now - lastDigestUnix);
+  }
+  if (lastDigestMs != 0 && millis() >= lastDigestMs) return (millis() - lastDigestMs) / 1000UL;
+  return telegramEverySec();
+}
+
 String buildAlert() {
   String s;
   s.reserve(3600);
   s += "MakerPulse · ";
   s += makerName;
+  s += "\n";
+  s += "Samenvatting · ";
+  s += periodLabel(digestElapsedSec());
   s += "\n\n";
-  appendTotal(s, "Downloads", current.downloads, lastSent.downloads);
-  appendTotal(s, "Likes", current.likes, lastSent.likes);
-  appendTotal(s, "Prints", current.prints, lastSent.prints);
-  appendTotal(s, "Boosts", current.boosts, lastSent.boosts);
-  appendTotal(s, "Collecties", current.collections, lastSent.collections);
-  appendTotal(s, "Comments", current.comments, lastSent.comments);
+  if (NOTIFY_DOWNLOADS) appendTotal(s, "Downloads", current.downloads, lastSent.downloads);
+  if (NOTIFY_LIKES) appendTotal(s, "Likes", current.likes, lastSent.likes);
+  if (NOTIFY_PRINTS) appendTotal(s, "Prints", current.prints, lastSent.prints);
+  if (NOTIFY_BOOSTS) appendTotal(s, "Boosts", current.boosts, lastSent.boosts);
+  if (NOTIFY_COLLECTIONS) appendTotal(s, "Collecties", current.collections, lastSent.collections);
+  if (NOTIFY_COMMENTS) appendTotal(s, "Comments", current.comments, lastSent.comments);
 
   if (alertCount > 0) {
     s += "\n";
@@ -1169,6 +1236,7 @@ void loadBaseline() {
   lastSent.boosts = prefs.getLong("bst", 0);
   lastSent.collections = prefs.getLong("col", 0);
   lastSent.comments = prefs.getLong("cmt", 0);
+  lastDigestUnix = (time_t)prefs.getLong("tgat", 0);
   prevAllSnapCount = prefs.getUShort("acnt", 0);
   if (prevAllSnapCount > MAX_ALL_MODELS) prevAllSnapCount = MAX_ALL_MODELS;
   {
@@ -1465,13 +1533,17 @@ void tick() {
 
   if (!hasBaseline) {
     saveBaseline();
+    stampDigest();
+  } else if (!digestDue()) {
+    // Period still open: keep the deltas for one summary at the end.
   } else if (changed) {
     ledRgb(false, true, true);
     if (sendTelegram(buildAlert())) {
       saveBaseline();
+      stampDigest();
     }
-  } else if (prevAllSnapCount == 0 && allSnapCount > 0) {
-    saveBaseline();
+  } else {
+    stampDigest();
   }
 
   ledRgb(false, true, false);
