@@ -1,5 +1,5 @@
-// MakerPulse CYD 2026.09.12a
-#define MAKERPULSE_FW "2026.09.12a"
+// MakerPulse CYD 2026.09.23a
+#define MAKERPULSE_FW "2026.09.23a"
 /*
  * ========== WHAT DO YOU NEED TO CHANGE? ==========
  *
@@ -1025,9 +1025,14 @@ bool fetchStats() {
     strncpy(makerName, name, sizeof(makerName) - 1);
     makerName[sizeof(makerName) - 1] = 0;
 
-    long downloads = doc["downloadCount"] | 0;
-    long designDl = doc["MWCount"]["myDesignDownloadCount"] | 0;
-    if (downloads == 0 && designDl > 0) downloads = designDl;
+    // Profile downloadCount includes other activity. The screen shows
+    // downloads of your published models only.
+    long downloads = 0;
+    if (!doc["MWCount"].isNull() && !doc["MWCount"]["myDesignDownloadCount"].isNull()) {
+      downloads = doc["MWCount"]["myDesignDownloadCount"] | 0;
+    } else {
+      downloads = doc["downloadCount"] | 0;
+    }
 
     current.downloads = downloads;
     current.likes = doc["likeCount"] | 0;
