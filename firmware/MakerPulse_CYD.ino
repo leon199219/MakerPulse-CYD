@@ -1,5 +1,5 @@
-// MakerPulse CYD 2026.09.23b
-#define MAKERPULSE_FW "2026.09.23b"
+// MakerPulse CYD 2026.09.28a
+#define MAKERPULSE_FW "2026.09.28a"
 /*
  * ========== WHAT DO YOU NEED TO CHANGE? ==========
  *
@@ -864,6 +864,75 @@ bool commentsNotACollapse(long sum) {
   return true;
 }
 
+bool fetchDesignCommentCount(HTTPClient& http, WiFiClientSecure& client, uint32_t id, uint32_t& out) {
+  if (id == 0) return false;
+  String url = String("https://api.bambulab.com/v1/design-service/design/") + String(id);
+  const char* key = "\"commentCount\":";
+  const int keyLen = 15;
+  for (int attempt = 0; attempt < 2; attempt++) {
+    http.end();
+    client.stop();
+    if (attempt) delay(200);
+    serviceNet();
+    if (!http.begin(client, url)) continue;
+    http.addHeader("Accept", "application/json");
+    http.addHeader("User-Agent", MW_UA);
+    int code = http.GET();
+    if (code != 200) {
+      http.end();
+      continue;
+    }
+    WiFiClient* stream = http.getStreamPtr();
+    int matched = 0;
+    bool inNum = false;
+    bool digit = false;
+    uint32_t val = 0;
+    int seen = 0;
+    unsigned long start = millis();
+    bool ok = false;
+    while (seen < 24576 && millis() - start < 12000) {
+      if (!stream->available()) {
+        delay(2);
+        serviceNet();
+        continue;
+      }
+      int c = stream->read();
+      if (c < 0) break;
+      seen++;
+      if (!inNum) {
+        if ((char)c == key[matched]) {
+          matched++;
+          if (matched == keyLen) inNum = true;
+        } else {
+          matched = ((char)c == key[0]) ? 1 : 0;
+        }
+        continue;
+      }
+      if (c == ' ' || c == '\n' || c == '\r' || c == '\t') {
+        if (digit) {
+          ok = true;
+          break;
+        }
+        continue;
+      }
+      if (c >= '0' && c <= '9') {
+        digit = true;
+        val = val * 10u + (uint32_t)(c - '0');
+        continue;
+      }
+      if (digit) ok = true;
+      break;
+    }
+    http.end();
+    client.stop();
+    if (ok && digit) {
+      out = val;
+      return true;
+    }
+  }
+  return false;
+}
+
 bool fetchPublishedPage(HTTPClient& http, WiFiClientSecure& client, int offset, String& body) {
   String url = String("https://api.bambulab.com/v1/design-service/publisheddesigns/") +
                String((unsigned long)MAKERWORLD_UID) + "?type=ALL&limit=" + String(PUBLISH_LIMIT) +
@@ -953,7 +1022,19 @@ bool fetchAllComments(const long* ids, int nids) {
         return false;
       }
     }
-    for (int i = 0; i < nHits; i++) ingestPubHit(acc, pageHits[i]);
+    for (int i = 0; i < nHits; i++) {
+      uint32_t cc = 0;
+      if (!fetchDesignCommentCount(http, client, pageHits[i].id, cc)) {
+        censusFound = acc.found;
+        censusTotal = total > 0 ? total : pageTotal;
+        allSnapCount = 0;
+        alertCount = 0;
+        client.stop();
+        return false;
+      }
+      pageHits[i].comments = cc;
+      ingestPubHit(acc, pageHits[i]);
+    }
     censusFound = acc.found;
     offset += PUBLISH_LIMIT;
     if (page == 0 && total > 0 && nHits <= 0) {

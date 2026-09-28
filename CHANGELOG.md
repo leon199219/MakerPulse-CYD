@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026.09.28a
+
+### Fixed
+
+- **Comments** now add up the Reviews & Ratings count from each model page (`design.commentCount`).
+- The published-model list reports a lower `commentCount` than the model page. That list figure is no longer used for the total or for per-model comment changes.
+- If a model page cannot be read, that round is discarded and the previous comment total stays.
+
 ## 2026.09.23b
 
 ### Changed
