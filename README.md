@@ -113,18 +113,6 @@ After flashing, the IP is shown at the bottom-right of the screen (`makerpulse-c
 
 **HTTP:** `POST http://makerpulse-cyd.local/light` with `{"state":"ON","brightness":255}`. Details in [firmware/README.md](firmware/README.md).
 
-## Optional: firmware configurator (Docker)
-
-The GUI is **not** a GitHub Pages site: it needs a server (MakerWorld + zip). This is **not** the [analytics dashboard](https://github.com/leon199219/makerpulse).
-
-This public repo is the **Arduino firmware**. The Node configurator lives in `makerpulse-docker.zip`, downloaded from the configurator. Unzip and:
-
-```bash
-docker compose up -d --build
-```
-
-Port 3080, no database, no login. Guide: [DOCKER.md](DOCKER.md).
-
 ## Layout
 
 ```
