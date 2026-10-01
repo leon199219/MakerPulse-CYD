@@ -103,15 +103,36 @@ Newer USB-C CYD: enable **newer CYD (USB-C)** in the configurator, or set `CYD_P
 3. Put the chat ID in the configurator or in `config.h`.
 4. Send a test message before you flash.
 
-The CYD stores the last values in flash. Only a real delta triggers a message.
+`TELEGRAM_INTERVAL_SEC` chooses the summary period: `0` (each check), `3600` (1 hour), `21600` (6 hours) or `86400` (24 hours). Each option is one summary of that period for every statistic you left on. A quiet period sends nothing. The screen still refreshes every 2, 5, 10 or 15 minutes (`POLL_INTERVAL_SEC`).
 
-## Home Assistant
+## Home Assistant (MQTT)
 
-After flashing, the IP is shown at the bottom-right of the screen (`makerpulse-cyd.local`).
+MQTT is optional. Leave `MQTT_HOST` empty in `config.h` and the display and Telegram still work. Install stays in the Arduino IDE — there is no Docker step for the CYD.
 
-**MQTT (recommended):** Mosquitto in HA, host/user/password in MakerPulse, flash again. Device **MakerPulse CYD** then appears with light **MakerPulse scherm** and sensors for the six statistics.
+| Define | Meaning |
+| --- | --- |
+| `MQTT_HOST` | Mosquitto IP or hostname. Empty = MQTT off. |
+| `MQTT_PORT` | Default `1883`. |
+| `MQTT_USER` | Broker user, or empty. |
+| `MQTT_PASS` | Broker password, or empty. |
 
-**HTTP:** `POST http://makerpulse-cyd.local/light` with `{"state":"ON","brightness":255}`. Details in [firmware/README.md](firmware/README.md).
+1. Install the **Mosquitto broker** add-on. Discovery prefix `homeassistant` stays on.
+2. Fill in the defines and flash again with the Arduino IDE.
+3. Settings → Devices & services → MQTT. Device **MakerPulse CYD** appears.
+
+| Entity | What it is |
+| --- | --- |
+| Light **MakerPulse scherm** | Screen on/off and brightness 0–255 |
+| Sensor **Downloads** | Published-model downloads |
+| Sensor **Likes** | Likes |
+| Sensor **Prints** | Prints |
+| Sensor **Boosts** | Boosts |
+| Sensor **Collecties** | Collections |
+| Sensor **Comments** | Reviews & Ratings on every published model, summed |
+
+Sensors update after each successful MakerWorld check, and again when the broker reconnects. Topic: `makerpulse/<mac>/stats`.
+
+HTTP (`POST http://makerpulse-cyd.local/light`) only controls the backlight. The six statistics are MQTT-only. Full steps: [firmware/README.md](firmware/README.md#8-home-assistant--mqtt-options).
 
 ## Layout
 

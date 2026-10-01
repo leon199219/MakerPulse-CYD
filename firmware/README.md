@@ -89,7 +89,7 @@ Leave `JOUW_WIFI_NAAM` / `JOUW_WIFI_WACHTWOORD` / `MAKERWORLD_UID 0` and the CYD
 | `CYD_ROTATION` | `0` USB bottom, `1` USB left, `2` USB top, `3` USB right. |
 | `CYD_INVERT` | `1` if colours look negative / washed out. |
 | `CYD_PANEL_ST7789` | `1` on a newer USB-C CYD. Then also set `CYD_OFFSET_ROTATION 0` and `CYD_RGB_ORDER 1`. |
-| `MQTT_HOST` | Home Assistant IP. Empty = MQTT off. |
+| `MQTT_HOST` | Mosquitto IP or hostname. Empty = MQTT off (no light, no sensors). |
 | `MQTT_PORT` | Default `1883`. |
 | `MQTT_USER` / `MQTT_PASS` | Mosquitto login, or empty. |
 | `NOTIFY_DOWNLOADS` … `NOTIFY_COMMENTS` | `1` = Telegram for that metric, `0` = off. |
@@ -159,20 +159,41 @@ Each option is the same kind of message: **one summary of that period**, not a p
 
 The CYD stores the last figures in flash. The first boot does not send a notification; after that only a real change does. The message names the title of **every** model whose downloads, likes, prints, boosts, collections or comments changed — not only the pinned one. Comments is the sum of **all** published models. The bottom of the screen shows `gevonden/totaal` (e.g. `48/48`); red means that round's count was incomplete and the previous total is kept.
 
-## 8. Home Assistant — screen on/off and brightness
+## 8. Home Assistant — MQTT options
 
-After flashing, the CYD shows its IP at the bottom-right of the screen (`makerpulse-cyd.local`).
+MQTT is optional. Leave `MQTT_HOST` empty and the CYD still shows stats and can still send Telegram. Nothing is published.
 
-### Option A — MQTT (recommended)
+Set these in `config.h`, then flash again with the Arduino IDE:
+
+| Define | Meaning |
+| --- | --- |
+| `MQTT_HOST` | Mosquitto IP or hostname (usually the Home Assistant machine). Empty = MQTT off. |
+| `MQTT_PORT` | Broker port. Default `1883`. |
+| `MQTT_USER` | Mosquitto username, or empty if the broker allows anonymous login. |
+| `MQTT_PASS` | Mosquitto password, or empty. |
 
 1. Install the **Mosquitto broker** add-on in Home Assistant.
-2. In `config.h` set `MQTT_HOST` to the Home Assistant IP (and `MQTT_USER` / `MQTT_PASS` if Mosquitto requires them).
-3. Flash again.
-4. In HA: Settings → Devices → MQTT. Device **MakerPulse CYD** appears with light **MakerPulse scherm** (on/off + brightness 0–255) and six sensors: Downloads, Likes, Prints, Boosts, Collecties, Comments. The sensors update after each successful MakerWorld check.
+2. MQTT discovery prefix stays `homeassistant` (the default).
+3. Flash the sketch.
+4. In HA: Settings → Devices & services → MQTT. Device **MakerPulse CYD** appears.
 
-Discovery prefix is `homeassistant`. MQTT discovery must be on (default for the official integration).
+That device has:
 
-### Option B — HTTP, without MQTT
+| Entity | What it is |
+| --- | --- |
+| Light **MakerPulse scherm** | Screen on/off and brightness 0–255 |
+| Sensor **Downloads** | Published-model downloads |
+| Sensor **Likes** | Likes |
+| Sensor **Prints** | Prints |
+| Sensor **Boosts** | Boosts |
+| Sensor **Collecties** | Collections |
+| Sensor **Comments** | Reviews & Ratings, summed across every published model |
+
+The six sensors update after every successful MakerWorld check, and again when the broker reconnects. They share one retained topic, `makerpulse/<mac>/stats`. The light uses `makerpulse/<mac>/light/set` and `…/light/state`.
+
+### Without MQTT — backlight only
+
+HTTP does **not** publish the six statistics. It only controls the screen:
 
 ```yaml
 rest_command:
@@ -186,7 +207,7 @@ rest_command:
 
 On: `state: ON`, brightness `0–255`. Off: `state: OFF`.
 
-Status: `http://makerpulse-cyd.local/light` or `http://IP/light`.
+Status: `http://makerpulse-cyd.local/light` or `http://IP/light`. The IP is at the bottom-right of the screen.
 
 ## Problems
 
