@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026.10.01b
+
+### Removed
+
+- Docker is no longer an install path. There is no `makerpulse-docker.zip`, `DOCKER.md` or compose service.
+- Install and flash the CYD with the Arduino IDE only (repo or the configurator zip).
+
 ## 2026.10.01a
 
 ### Added
