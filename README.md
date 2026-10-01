@@ -10,7 +10,7 @@ Downloads, likes, prints, boosts, collections and comments — when a value chan
 
 After flashing, the CYD talks to MakerWorld on its own. You can close the browser.
 
-**Firmware:** [`2026.09.28a`](firmware/MakerPulse_CYD.ino) · **License:** [MIT](LICENSE)
+**Firmware:** [`2026.10.01a`](firmware/MakerPulse_CYD.ino) · **License:** [MIT](LICENSE)
 
 ---
 
@@ -32,7 +32,7 @@ The CYD firmware and the dashboard are independent. Run the screen, the web UI, 
 - Six entities on the 2.8" screen (240×320)
 - Telegram on change
 - Each affected model's title in the message, not only the pinned one
-- MQTT → Home Assistant display backlight (on/off + brightness 0–255)
+- MQTT → Home Assistant display backlight (on/off + brightness 0–255) and six sensors (downloads, likes, prints, boosts, collections, comments)
 - HTTP endpoint `/light` if you do not want a broker
 - Incomplete comment counts are discarded (`found/total` at the bottom of the screen)
 
@@ -109,7 +109,7 @@ The CYD stores the last values in flash. Only a real delta triggers a message.
 
 After flashing, the IP is shown at the bottom-right of the screen (`makerpulse-cyd.local`).
 
-**MQTT (recommended):** Mosquitto in HA, host/user/password in MakerPulse, flash again. The light **MakerPulse display** then appears under MQTT devices.
+**MQTT (recommended):** Mosquitto in HA, host/user/password in MakerPulse, flash again. Device **MakerPulse CYD** then appears with light **MakerPulse scherm** and sensors for the six statistics.
 
 **HTTP:** `POST http://makerpulse-cyd.local/light` with `{"state":"ON","brightness":255}`. Details in [firmware/README.md](firmware/README.md).
 

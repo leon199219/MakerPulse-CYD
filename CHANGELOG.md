@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026.10.01a
+
+### Added
+
+- MQTT discovery for six Home Assistant sensors on the same device as the backlight: Downloads, Likes, Prints, Boosts, Collecties and Comments.
+- Values are published to `makerpulse/<mac>/stats` after every successful MakerWorld check, and again when the broker reconnects.
+- The light **MakerPulse scherm** is unchanged.
+
 ## 2026.09.28a
 
 ### Fixed

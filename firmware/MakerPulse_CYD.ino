@@ -1,5 +1,5 @@
-// MakerPulse CYD 2026.09.28a
-#define MAKERPULSE_FW "2026.09.28a"
+// MakerPulse CYD 2026.10.01a
+#define MAKERPULSE_FW "2026.10.01a"
 /*
  * ========== WHAT DO YOU NEED TO CHANGE? ==========
  *
@@ -225,6 +225,7 @@ char mqttClientId[28] = "";
 char topicCmd[48] = "";
 char topicState[48] = "";
 char topicAvail[48] = "";
+char topicStats[48] = "";
 char topicDisc[64] = "";
 
 void serviceNet();
@@ -1405,6 +1406,20 @@ void publishLightState() {
   mqtt.publish(topicState, lightJson().c_str(), true);
 }
 
+void publishStats() {
+  if (!mqtt.connected() || !lastOk) return;
+  JsonDocument doc;
+  doc["downloads"] = current.downloads;
+  doc["likes"] = current.likes;
+  doc["prints"] = current.prints;
+  doc["boosts"] = current.boosts;
+  doc["collections"] = current.collections;
+  doc["comments"] = current.comments;
+  String payload;
+  serializeJson(doc, payload);
+  mqtt.publish(topicStats, payload.c_str(), true);
+}
+
 void applyBacklight(bool pub) {
   tft.setBrightness(blOn ? blBright : 0);
   saveBacklight();
@@ -1465,6 +1480,38 @@ void publishDiscovery() {
   String payload;
   serializeJson(d, payload);
   mqtt.publish(topicDisc, payload.c_str(), true);
+
+  static const char* keys[] = {"downloads", "likes", "prints", "boosts", "collections", "comments"};
+  static const char* names[] = {"Downloads", "Likes", "Prints", "Boosts", "Collecties", "Comments"};
+  static const char* icons[] = {
+      "mdi:download", "mdi:heart", "mdi:printer-3d", "mdi:rocket-launch", "mdi:bookmark", "mdi:comment"};
+  for (int i = 0; i < 6; i++) {
+    JsonDocument s;
+    s["name"] = names[i];
+    char uid[48];
+    snprintf(uid, sizeof(uid), "%s_%s", mqttClientId, keys[i]);
+    s["unique_id"] = uid;
+    s["state_topic"] = topicStats;
+    char tmpl[40];
+    snprintf(tmpl, sizeof(tmpl), "{{ value_json.%s }}", keys[i]);
+    s["value_template"] = tmpl;
+    s["state_class"] = "measurement";
+    s["icon"] = icons[i];
+    s["availability_topic"] = topicAvail;
+    s["payload_available"] = "online";
+    s["payload_not_available"] = "offline";
+    JsonObject dev = s["device"].to<JsonObject>();
+    dev["identifiers"][0] = mqttClientId;
+    dev["name"] = "MakerPulse CYD";
+    dev["model"] = "ESP32-2432S028";
+    dev["manufacturer"] = "MakerPulse";
+    String body;
+    serializeJson(s, body);
+    char topic[80];
+    snprintf(topic, sizeof(topic), "homeassistant/sensor/%s/%s/config", mqttClientId, keys[i]);
+    mqtt.publish(topic, body.c_str(), true);
+    mqtt.loop();
+  }
 }
 
 void ensureMqtt() {
@@ -1484,6 +1531,7 @@ void ensureMqtt() {
   mqtt.subscribe(topicCmd);
   publishDiscovery();
   publishLightState();
+  if (lastOk) publishStats();
 }
 
 void setupMqtt() {
@@ -1495,10 +1543,11 @@ void setupMqtt() {
   snprintf(topicCmd, sizeof(topicCmd), "makerpulse/%s/light/set", mac.c_str());
   snprintf(topicState, sizeof(topicState), "makerpulse/%s/light/state", mac.c_str());
   snprintf(topicAvail, sizeof(topicAvail), "makerpulse/%s/status", mac.c_str());
+  snprintf(topicStats, sizeof(topicStats), "makerpulse/%s/stats", mac.c_str());
   snprintf(topicDisc, sizeof(topicDisc), "homeassistant/light/%s/config", mqttClientId);
   mqtt.setServer(MQTT_HOST, MQTT_PORT);
   mqtt.setCallback(mqttCallback);
-  mqtt.setBufferSize(1024);
+  mqtt.setBufferSize(1536);
 }
 
 void sendCors() {
@@ -1627,6 +1676,7 @@ void tick() {
     stampDigest();
   }
 
+  publishStats();
   ledRgb(false, true, false);
   delay(400);
   ledOff();

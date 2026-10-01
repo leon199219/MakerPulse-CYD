@@ -168,7 +168,7 @@ After flashing, the CYD shows its IP at the bottom-right of the screen (`makerpu
 1. Install the **Mosquitto broker** add-on in Home Assistant.
 2. In `config.h` set `MQTT_HOST` to the Home Assistant IP (and `MQTT_USER` / `MQTT_PASS` if Mosquitto requires them).
 3. Flash again.
-4. In HA: Settings → Devices → MQTT. Light **MakerPulse scherm** appears automatically (on/off + brightness 0–255).
+4. In HA: Settings → Devices → MQTT. Device **MakerPulse CYD** appears with light **MakerPulse scherm** (on/off + brightness 0–255) and six sensors: Downloads, Likes, Prints, Boosts, Collecties, Comments. The sensors update after each successful MakerWorld check.
 
 Discovery prefix is `homeassistant`. MQTT discovery must be on (default for the official integration).
 
