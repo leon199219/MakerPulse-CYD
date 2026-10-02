@@ -1,10 +1,8 @@
 # MakerPulse
 
-<img width="1920" height="1440" alt="MakerPulse CYD" src="https://github.com/user-attachments/assets/cbe42d65-006b-4494-a9cb-f376ede01638" />
+<img width="1600" height="1200" alt="Naamloos" src="https://github.com/user-attachments/assets/fa835244-170c-4dbd-825a-202a19a0d56a" />
 
 MakerWorld statistics on a Cheap Yellow Display ([ESP32-2432S028](https://github.com/witnessmenow/ESP32-Cheap-Yellow-Display)).
-
-![MakerPulse on the CYD screen](docs/cyd.png)
 
 Downloads, likes, prints, boosts, collections and comments — when a value changes, the module sends a Telegram message with the model title. **Comments is the total across all of your published models**, not just the featured one.
 
@@ -12,22 +10,7 @@ After flashing, the CYD talks to MakerWorld on its own. You can close the browse
 
 **Firmware:** [`2026.10.01a`](firmware/MakerPulse_CYD.ino) · **License:** [MIT](LICENSE)
 
----
-
-## (different project) Also see this self-hosted Docker container: web dashboard (Docker)
-
-Prefer charts, history per model, and a period picker in the browser? That is a separate project: **[MakerPulse](https://github.com/leon199219/makerpulse)** — self-hosted Docker analytics.
-
-[![MakerPulse dashboard](https://raw.githubusercontent.com/leon199219/makerpulse/main/screenshots/home.png)](https://github.com/leon199219/makerpulse)
-<img width="3302" height="1837" alt="afbeelding" src="https://github.com/user-attachments/assets/ab4658ea-b477-4276-bda4-f507bf1b82f3" />
-
-
-
-The CYD firmware and the dashboard are independent. Run the screen, the web UI, or both.
-
----
-
-## This project (CYD): What it does
+## What it does
 
 - Six entities on the 2.8" screen (240×320)
 - Telegram on change
@@ -147,6 +130,19 @@ SECURITY.md                   what never to publish
 ```
 
 `config.h` is in [`.gitignore`](.gitignore). Keep `mp_types.h` next to the `.ino`.
+
+## Alternative > |Docker Integration for the best overview/history|
+Want maximum control and insights on your MakerWorld data? 
+
+> Run MakerPulse as a Docker Integration on your homeserver!
+
+> Check out my other project > https://github.com/leon199219/makerpulse
+
+
+<img width="1020" height="1681" alt="Screenshot 2026-10-02 131002" src="https://github.com/user-attachments/assets/05618934-6d78-419a-9778-8a23c20def22" />
+
+
+
 
 ## Do not publish
 
