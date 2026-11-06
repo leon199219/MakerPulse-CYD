@@ -8,6 +8,10 @@
 - MQTT sensor **Volgers** on the same Home Assistant device.
 - `NOTIFY_FOLLOWERS` includes that count in the Telegram summary. `0` hides it from Telegram only.
 
+### Changed
+
+- Example images show followers beside the name. They use a generic maker label, not a personal account.
+
 ## 2026.10.01b
 
 ### Removed

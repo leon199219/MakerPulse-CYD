@@ -1,6 +1,6 @@
 # MakerPulse
 
-<img width="1600" height="1200" alt="Naamloos" src="https://github.com/user-attachments/assets/fa835244-170c-4dbd-825a-202a19a0d56a" />
+![MakerPulse on a CYD, followers beside the name](docs/hero.png)
 
 MakerWorld statistics on a Cheap Yellow Display ([ESP32-2432S028](https://github.com/witnessmenow/ESP32-Cheap-Yellow-Display)).
 
@@ -15,11 +15,15 @@ After flashing, the CYD talks to MakerWorld on its own. You can close the browse
 - Six entities on the 2.8" screen (240×320)
 - Telegram on change
 - Each affected model's title in the message, not only the pinned one
-- MQTT → Home Assistant display backlight (on/off + brightness 0–255) and six sensors (downloads, likes, prints, boosts, collections, comments)
+- MQTT → Home Assistant display backlight (on/off + brightness 0–255), six model sensors, and a **Volgers** sensor
 - HTTP endpoint `/light` if you do not want a broker
 - Incomplete comment counts are discarded (`found/total` at the bottom of the screen)
 
 No MakerWorld login, no third-party cloud. Public profile and model data only.
+
+![Configurator, with followers beside the name](docs/configurator.png)
+
+![CYD board](docs/cyd.png)
 
 ## Install with Arduino IDE
 
@@ -116,7 +120,7 @@ MQTT is optional. Leave `MQTT_HOST` empty in `config.h` and the display and Tele
 
 Sensors update after each successful MakerWorld check, and again when the broker reconnects. Topic: `makerpulse/<mac>/stats`.
 
-HTTP (`POST http://makerpulse-cyd.local/light`) only controls the backlight. The six statistics are MQTT-only. Full steps: [firmware/README.md](firmware/README.md#8-home-assistant--mqtt-options).
+HTTP (`POST http://makerpulse-cyd.local/light`) only controls the backlight. The statistics, including followers, are MQTT-only. Full steps: [firmware/README.md](firmware/README.md#8-home-assistant--mqtt-options).
 
 ## Layout
 
