@@ -1,5 +1,5 @@
-// MakerPulse CYD 2026.10.01a
-#define MAKERPULSE_FW "2026.10.01a"
+// MakerPulse CYD 2026.11.06a
+#define MAKERPULSE_FW "2026.11.06a"
 /*
  * ========== WHAT DO YOU NEED TO CHANGE? ==========
  *
@@ -112,6 +112,9 @@
 #ifndef NOTIFY_COMMENTS
 #define NOTIFY_COMMENTS 1
 #endif
+#ifndef NOTIFY_FOLLOWERS
+#define NOTIFY_FOLLOWERS 1
+#endif
 
 static const int PIN_LED_R = 4;
 static const int PIN_LED_G = 16;
@@ -195,8 +198,8 @@ static const char MW_UA[] =
 
 CydDisplay tft;
 Preferences prefs;
-Stats current = {0, 0, 0, 0, 0, 0};
-Stats lastSent = {0, 0, 0, 0, 0, 0};
+Stats current = {0, 0, 0, 0, 0, 0, 0};
+Stats lastSent = {0, 0, 0, 0, 0, 0, 0};
 ModelSnap models[MAX_MODELS];
 int modelCount = 0;
 AllSnap allSnaps[MAX_ALL_MODELS];
@@ -353,10 +356,35 @@ void drawDashboard() {
   tft.setTextDatum(top_right);
   tft.drawString(clockStr() + (WiFi.status() == WL_CONNECTED ? "  WiFi" : "  --"), W - 8, 6);
 
+  long df = hasBaseline ? current.followers - lastSent.followers : 0;
+  String fan = fmtNum(current.followers);
+  if (df > 0) {
+    fan += " +";
+    fan += fmtNum(df);
+  }
+  fan += " volgers";
+  tft.setFont(&fonts::Font0);
+  int fanW = tft.textWidth(fan);
+  if (fanW > W / 2) {
+    fan = fmtNum(current.followers);
+    if (df > 0) {
+      fan += " +";
+      fan += fmtNum(df);
+    }
+    fanW = tft.textWidth(fan);
+  }
+  tft.setTextDatum(middle_right);
+  tft.setTextColor(df > 0 ? COL_UP : COL_MUTED, COL_HEAD);
+  tft.drawString(fan, W - 8, headH - 14);
+
   tft.setTextDatum(middle_left);
   tft.setFont(&fonts::Font2);
   tft.setTextColor(COL_FG, COL_HEAD);
-  tft.drawString(makerName, 8, headH - 14);
+  String name = makerName;
+  int nameMax = W - 16 - fanW - 6;
+  if (nameMax < 16) nameMax = 16;
+  while (name.length() > 1 && tft.textWidth(name) > nameMax) name.remove(name.length() - 1);
+  tft.drawString(name, 8, headH - 14);
 
   tft.drawFastHLine(0, headH, W, COL_LINE);
 
@@ -1126,6 +1154,7 @@ bool fetchStats() {
     current.prints = doc["MWCount"]["myDesignPrintCount"] | 0;
     current.boosts = doc["boostGained"] | 0;
     current.collections = doc["collectionCount"] | 0;
+    current.followers = doc["fanCount"] | 0;
     nids = collectDesignIds(doc, ids, MAX_MODELS);
   }
 
@@ -1271,6 +1300,7 @@ String buildAlert() {
   if (NOTIFY_BOOSTS) appendTotal(s, "Boosts", current.boosts, lastSent.boosts);
   if (NOTIFY_COLLECTIONS) appendTotal(s, "Collecties", current.collections, lastSent.collections);
   if (NOTIFY_COMMENTS) appendTotal(s, "Comments", current.comments, lastSent.comments);
+  if (NOTIFY_FOLLOWERS) appendTotal(s, "Volgers", current.followers, lastSent.followers);
 
   if (alertCount > 0) {
     s += "\n";
@@ -1306,6 +1336,7 @@ bool notableChange() {
   if (NOTIFY_BOOSTS && current.boosts != lastSent.boosts) return true;
   if (NOTIFY_COLLECTIONS && current.collections != lastSent.collections) return true;
   if (NOTIFY_COMMENTS && current.comments != lastSent.comments) return true;
+  if (NOTIFY_FOLLOWERS && current.followers != lastSent.followers) return true;
   return false;
 }
 
@@ -1318,6 +1349,7 @@ void loadBaseline() {
   lastSent.boosts = prefs.getLong("bst", 0);
   lastSent.collections = prefs.getLong("col", 0);
   lastSent.comments = prefs.getLong("cmt", 0);
+  lastSent.followers = prefs.getLong("fan", 0);
   lastDigestUnix = (time_t)prefs.getLong("tgat", 0);
   prevAllSnapCount = prefs.getUShort("acnt", 0);
   if (prevAllSnapCount > MAX_ALL_MODELS) prevAllSnapCount = MAX_ALL_MODELS;
@@ -1358,6 +1390,7 @@ void saveBaseline() {
   prefs.putLong("bst", lastSent.boosts);
   prefs.putLong("col", lastSent.collections);
   prefs.putLong("cmt", lastSent.comments);
+  prefs.putLong("fan", lastSent.followers);
   if (allSnapCount > 0) {
     prefs.putUShort("acnt", (uint16_t)allSnapCount);
     const int chunk = 100;
@@ -1415,6 +1448,7 @@ void publishStats() {
   doc["boosts"] = current.boosts;
   doc["collections"] = current.collections;
   doc["comments"] = current.comments;
+  doc["followers"] = current.followers;
   String payload;
   serializeJson(doc, payload);
   mqtt.publish(topicStats, payload.c_str(), true);
@@ -1481,11 +1515,11 @@ void publishDiscovery() {
   serializeJson(d, payload);
   mqtt.publish(topicDisc, payload.c_str(), true);
 
-  static const char* keys[] = {"downloads", "likes", "prints", "boosts", "collections", "comments"};
-  static const char* names[] = {"Downloads", "Likes", "Prints", "Boosts", "Collecties", "Comments"};
-  static const char* icons[] = {
-      "mdi:download", "mdi:heart", "mdi:printer-3d", "mdi:rocket-launch", "mdi:bookmark", "mdi:comment"};
-  for (int i = 0; i < 6; i++) {
+  static const char* keys[] = {"downloads", "likes", "prints", "boosts", "collections", "comments", "followers"};
+  static const char* names[] = {"Downloads", "Likes", "Prints", "Boosts", "Collecties", "Comments", "Volgers"};
+  static const char* icons[] = {"mdi:download", "mdi:heart",        "mdi:printer-3d", "mdi:rocket-launch",
+                                "mdi:bookmark", "mdi:comment",      "mdi:account-group"};
+  for (int i = 0; i < 7; i++) {
     JsonDocument s;
     s["name"] = names[i];
     char uid[48];

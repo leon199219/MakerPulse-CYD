@@ -93,6 +93,7 @@ Leave `JOUW_WIFI_NAAM` / `JOUW_WIFI_WACHTWOORD` / `MAKERWORLD_UID 0` and the CYD
 | `MQTT_PORT` | Default `1883`. |
 | `MQTT_USER` / `MQTT_PASS` | Mosquitto login, or empty. |
 | `NOTIFY_DOWNLOADS` … `NOTIFY_COMMENTS` | `1` = Telegram for that metric, `0` = off. |
+| `NOTIFY_FOLLOWERS` | `1` = include followers in the Telegram summary. The screen still shows them. |
 
 ### No `config.h` at all
 
@@ -188,6 +189,7 @@ That device has:
 | Sensor **Boosts** | Boosts |
 | Sensor **Collecties** | Collections |
 | Sensor **Comments** | Reviews & Ratings, summed across every published model |
+| Sensor **Volgers** | Profile followers (`fanCount`), also shown next to the name on the screen |
 
 The six sensors update after every successful MakerWorld check, and again when the broker reconnects. They share one retained topic, `makerpulse/<mac>/stats`. The light uses `makerpulse/<mac>/light/set` and `…/light/state`.
 

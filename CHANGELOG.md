@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026.11.06a
+
+### Added
+
+- Followers sit beside the maker name on the screen (not a seventh row). A gain shows as `+N` until the next Telegram summary.
+- MQTT sensor **Volgers** on the same Home Assistant device.
+- `NOTIFY_FOLLOWERS` includes that count in the Telegram summary. `0` hides it from Telegram only.
+
 ## 2026.10.01b
 
 ### Removed

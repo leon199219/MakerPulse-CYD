@@ -15,6 +15,7 @@ struct Stats {
   long boosts;
   long collections;
   long comments;
+  long followers;
 };
 
 struct ModelSnap {

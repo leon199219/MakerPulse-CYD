@@ -8,7 +8,7 @@ Downloads, likes, prints, boosts, collections and comments — when a value chan
 
 After flashing, the CYD talks to MakerWorld on its own. You can close the browser.
 
-**Firmware:** [`2026.10.01a`](firmware/MakerPulse_CYD.ino) · **License:** [MIT](LICENSE)
+**Firmware:** [`2026.11.06a`](firmware/MakerPulse_CYD.ino) · **License:** [MIT](LICENSE)
 
 ## What it does
 
@@ -112,6 +112,7 @@ MQTT is optional. Leave `MQTT_HOST` empty in `config.h` and the display and Tele
 | Sensor **Boosts** | Boosts |
 | Sensor **Collecties** | Collections |
 | Sensor **Comments** | Reviews & Ratings on every published model, summed |
+| Sensor **Volgers** | Followers, also shown beside the name on the screen |
 
 Sensors update after each successful MakerWorld check, and again when the broker reconnects. Topic: `makerpulse/<mac>/stats`.
 
