@@ -8,7 +8,7 @@ Downloads, likes, prints, boosts, collections and comments — when a value chan
 
 After flashing, the CYD talks to MakerWorld on its own. You can close the browser.
 
-**Firmware:** [`2026.11.06a`](firmware/MakerPulse_CYD.ino) · **License:** [MIT](LICENSE)
+**Firmware:** [`2026.11.07a`](firmware/MakerPulse_CYD.ino) · **License:** [MIT](LICENSE)
 
 ## What it does
 
@@ -93,6 +93,13 @@ Newer USB-C CYD: enable **newer CYD (USB-C)** in the configurator, or set `CYD_P
 `TELEGRAM_INTERVAL_SEC` chooses the summary period: `0` (each check), `3600` (1 hour), `21600` (6 hours) or `86400` (24 hours). Each option is one summary of that period for every statistic you left on. A quiet period sends nothing. The screen still refreshes every 2, 5, 10 or 15 minutes (`POLL_INTERVAL_SEC`).
 
 ## Home Assistant (MQTT)
+
+Backlight is a choice in `config.h`:
+
+| `BACKLIGHT_MODE` | Behaviour |
+| --- | --- |
+| `0` | Home Assistant. The screen does not turn off by itself. |
+| `1` | Automatic. Off after 10 minutes. A changed number or a touch turns it on for another 10 minutes. The HA light is not used. |
 
 MQTT is optional. Leave `MQTT_HOST` empty in `config.h` and the display and Telegram still work. Install stays in the Arduino IDE — there is no Docker step for the CYD.
 

@@ -1,5 +1,5 @@
-// MakerPulse CYD 2026.11.06a
-#define MAKERPULSE_FW "2026.11.06a"
+// MakerPulse CYD 2026.11.07a
+#define MAKERPULSE_FW "2026.11.07a"
 /*
  * ========== WHAT DO YOU NEED TO CHANGE? ==========
  *
@@ -82,6 +82,12 @@
 #ifndef CYD_RGB_ORDER
 #define CYD_RGB_ORDER 0
 #endif
+#ifndef BACKLIGHT_MODE
+#define BACKLIGHT_MODE 0
+#endif
+#ifndef BACKLIGHT_IDLE_SEC
+#define BACKLIGHT_IDLE_SEC 600
+#endif
 #ifndef MQTT_HOST
 #define MQTT_HOST ""
 #endif
@@ -136,6 +142,7 @@ class CydDisplay : public lgfx::LGFX_Device {
 #endif
   lgfx::Bus_SPI _bus_instance;
   lgfx::Light_PWM _light_instance;
+  lgfx::Touch_XPT2046 _touch_instance;
 
  public:
   CydDisplay(void) {
@@ -189,6 +196,28 @@ class CydDisplay : public lgfx::LGFX_Device {
       _light_instance.config(cfg);
       _panel_instance.setLight(&_light_instance);
     }
+    {
+      auto cfg = _touch_instance.config();
+      cfg.x_min = 300;
+      cfg.x_max = 3900;
+      cfg.y_min = 3700;
+      cfg.y_max = 200;
+      cfg.pin_int = 36;
+      cfg.bus_shared = false;
+      cfg.offset_rotation = 0;
+#if defined(VSPI_HOST)
+      cfg.spi_host = VSPI_HOST;
+#else
+      cfg.spi_host = SPI3_HOST;
+#endif
+      cfg.freq = 2500000;
+      cfg.pin_sclk = 25;
+      cfg.pin_mosi = 32;
+      cfg.pin_miso = 39;
+      cfg.pin_cs = 33;
+      _touch_instance.config(cfg);
+      _panel_instance.setTouch(&_touch_instance);
+    }
     setPanel(&_panel_instance);
   }
 };
@@ -224,6 +253,8 @@ PubSubClient mqtt(mqttNet);
 
 bool blOn = true;
 uint8_t blBright = 255;
+unsigned long lastActivityMs = 0;
+bool autoBacklight() { return BACKLIGHT_MODE == 1; }
 char mqttClientId[28] = "";
 char topicCmd[48] = "";
 char topicState[48] = "";
@@ -1457,10 +1488,45 @@ void publishStats() {
 void applyBacklight(bool pub) {
   tft.setBrightness(blOn ? blBright : 0);
   saveBacklight();
-  if (pub) publishLightState();
+  if (pub && !autoBacklight()) publishLightState();
+}
+
+void noteActivity() {
+  lastActivityMs = millis();
+  if (!autoBacklight()) return;
+  if (!blOn || blBright == 0) {
+    blOn = true;
+    if (blBright == 0) blBright = 255;
+  }
+  tft.setBrightness(blBright);
+}
+
+void serviceBacklight() {
+  if (!autoBacklight() || !blOn) return;
+  if (millis() - lastActivityMs < (unsigned long)BACKLIGHT_IDLE_SEC * 1000UL) return;
+  blOn = false;
+  tft.setBrightness(0);
+}
+
+void serviceTouch() {
+  if (!autoBacklight()) return;
+  uint16_t x = 0;
+  uint16_t y = 0;
+  if (!tft.getTouchRaw(&x, &y)) return;
+  if (x < 50 || y < 50 || x > 4000 || y > 4000) return;
+  noteActivity();
+}
+
+bool statsMoved() {
+  if (!hasBaseline) return false;
+  return current.downloads != lastSent.downloads || current.likes != lastSent.likes ||
+         current.prints != lastSent.prints || current.boosts != lastSent.boosts ||
+         current.collections != lastSent.collections || current.comments != lastSent.comments ||
+         current.followers != lastSent.followers;
 }
 
 void parseLightJson(const String& body) {
+  if (autoBacklight()) return;
   if (!body.length()) return;
   JsonDocument doc;
   if (deserializeJson(doc, body)) return;
@@ -1513,7 +1579,11 @@ void publishDiscovery() {
   dev["manufacturer"] = "MakerPulse";
   String payload;
   serializeJson(d, payload);
-  mqtt.publish(topicDisc, payload.c_str(), true);
+  if (autoBacklight()) {
+    mqtt.publish(topicDisc, "", true);
+  } else {
+    mqtt.publish(topicDisc, payload.c_str(), true);
+  }
 
   static const char* keys[] = {"downloads", "likes", "prints", "boosts", "collections", "comments", "followers"};
   static const char* names[] = {"Downloads", "Likes", "Prints", "Boosts", "Collecties", "Comments", "Volgers"};
@@ -1562,9 +1632,9 @@ void ensureMqtt() {
   }
   if (!ok) return;
   mqtt.publish(topicAvail, "online", true);
-  mqtt.subscribe(topicCmd);
+  if (!autoBacklight()) mqtt.subscribe(topicCmd);
   publishDiscovery();
-  publishLightState();
+  if (!autoBacklight()) publishLightState();
   if (lastOk) publishStats();
 }
 
@@ -1638,6 +1708,8 @@ void setupHttp() {
 
 void serviceNet() {
   www.handleClient();
+  serviceTouch();
+  serviceBacklight();
   if (mqttEnabled()) {
     ensureMqtt();
     mqtt.loop();
@@ -1695,6 +1767,7 @@ void tick() {
   }
   drawDashboard();
 
+  bool wake = !hasBaseline || statsMoved();
   if (!hasBaseline) {
     saveBaseline();
     stampDigest();
@@ -1711,6 +1784,7 @@ void tick() {
   }
 
   publishStats();
+  if (wake) noteActivity();
   ledRgb(false, true, false);
   delay(400);
   ledOff();
@@ -1725,6 +1799,7 @@ void setup() {
   tft.init();
   tft.setRotation(CYD_ROTATION);
   loadBaseline();
+  if (autoBacklight()) noteActivity();
   applyBacklight(false);
   drawStatus("MakerPulse", "CYD start...");
 
@@ -1765,7 +1840,11 @@ void loop() {
       setupMqtt();
       tick();
     } else {
-      delay(4000);
+      for (int i = 0; i < 20; i++) {
+        serviceTouch();
+        serviceBacklight();
+        delay(200);
+      }
     }
     return;
   }

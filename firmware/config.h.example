@@ -30,6 +30,8 @@
 #define CYD_PANEL_ST7789 0                    // 1 = newer CYD with USB-C
 #define CYD_OFFSET_ROTATION 2                 // USB-C: 0, micro-USB: 2
 #define CYD_RGB_ORDER 0                       // USB-C: 1, micro-USB: 0
+#define BACKLIGHT_MODE 0                      // 0 = MQTT/Home Assistant (no auto-off), 1 = automatic
+#define BACKLIGHT_IDLE_SEC 600                // automatic: off after 10 minutes, on again after a change or a touch
 
 // --- Home Assistant / MQTT (empty = off) ---
 #define MQTT_HOST ""                          // Home Assistant IP, e.g. 192.168.1.10

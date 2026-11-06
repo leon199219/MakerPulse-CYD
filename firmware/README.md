@@ -89,6 +89,8 @@ Leave `JOUW_WIFI_NAAM` / `JOUW_WIFI_WACHTWOORD` / `MAKERWORLD_UID 0` and the CYD
 | `CYD_ROTATION` | `0` USB bottom, `1` USB left, `2` USB top, `3` USB right. |
 | `CYD_INVERT` | `1` if colours look negative / washed out. |
 | `CYD_PANEL_ST7789` | `1` on a newer USB-C CYD. Then also set `CYD_OFFSET_ROTATION 0` and `CYD_RGB_ORDER 1`. |
+| `BACKLIGHT_MODE` | `0` = Home Assistant controls the backlight (no auto-off). `1` = automatic: off after 10 minutes, on after a change or a touch. |
+| `BACKLIGHT_IDLE_SEC` | Only used when `BACKLIGHT_MODE` is `1`. Default `600`. |
 | `MQTT_HOST` | Mosquitto IP or hostname. Empty = MQTT off (no light, no sensors). |
 | `MQTT_PORT` | Default `1883`. |
 | `MQTT_USER` / `MQTT_PASS` | Mosquitto login, or empty. |
@@ -162,7 +164,14 @@ The CYD stores the last figures in flash. The first boot does not send a notific
 
 ## 8. Home Assistant — MQTT options
 
-MQTT is optional. Leave `MQTT_HOST` empty and the CYD still shows stats and can still send Telegram. Nothing is published.
+The backlight is one choice:
+
+| `BACKLIGHT_MODE` | What the screen does |
+| --- | --- |
+| `0` | MQTT / Home Assistant. The light stays as HA or HTTP sets it. It does not turn off by itself. |
+| `1` | Automatic. Off after 10 minutes (`BACKLIGHT_IDLE_SEC`). A changed statistic or a tap on the screen turns it on for another 10 minutes. The HA light is not used. Sensors still publish if `MQTT_HOST` is set. |
+
+MQTT for the numbers is optional. Leave `MQTT_HOST` empty and the CYD still shows stats and can still send Telegram. Nothing is published.
 
 Set these in `config.h`, then flash again with the Arduino IDE:
 

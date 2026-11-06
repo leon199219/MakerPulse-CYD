@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026.11.07a
+
+### Added
+
+- Backlight choice in `config.h`: `BACKLIGHT_MODE 0` (MQTT / Home Assistant) or `1` (automatic).
+- Automatic turns the screen off after 10 minutes. A changed statistic or a touch turns it on again for 10 minutes. MQTT mode does not do this.
+- In automatic mode the Home Assistant light is not used. Sensors still publish when a broker is set.
+
 ## 2026.11.06a
 
 ### Added
