@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026.11.07g
+
+### Fixed
+
+- The picture sat a little too far left and too far down after the rotation change. It now shifts 12 px right and 16 px up.
+- On the setup page, “Beeld naar rechts” and “Beeld naar beneden” adjust that if it is still off. Negative numbers go the other way.
+
 ## 2026.11.07f
 
 ### Fixed

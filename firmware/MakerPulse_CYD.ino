@@ -1,5 +1,5 @@
-// MakerPulse CYD 2026.11.07f
-#define MAKERPULSE_FW "2026.11.07f"
+// MakerPulse CYD 2026.11.07g
+#define MAKERPULSE_FW "2026.11.07g"
 /*
  * ========== WHAT DO YOU NEED TO CHANGE? ==========
  *
@@ -261,6 +261,8 @@ int cfgTgEvery = TELEGRAM_INTERVAL_SEC;
 int cfgBlMode = BACKLIGHT_MODE;
 int cfgRot = CYD_ROTATION;
 bool cfgMirror = false;
+int cfgNudgeX = 12;
+int cfgNudgeY = -16;
 uint16_t cfgMqttPort = MQTT_PORT;
 uint8_t cfgNotify = (NOTIFY_DOWNLOADS ? 1 : 0) | (NOTIFY_LIKES ? 2 : 0) | (NOTIFY_PRINTS ? 4 : 0) |
                     (NOTIFY_BOOSTS ? 8 : 0) | (NOTIFY_COLLECTIONS ? 16 : 0) | (NOTIFY_COMMENTS ? 32 : 0) |
@@ -363,56 +365,56 @@ String clockStr() {
 }
 
 void drawStatus(const char* title, const char* detail) {
-  int W = tft.width();
-  int H = tft.height();
+  int W = layoutW();
+  int H = layoutH();
   tft.fillScreen(COL_BG);
   tft.setTextDatum(middle_center);
   tft.setFont(&fonts::Font2);
   tft.setTextColor(COL_FG, COL_BG);
-  tft.drawString(title, W / 2, H / 2 - 14);
+  tft.drawString(title, vx(W / 2), vy(H / 2 - 14));
   tft.setTextColor(COL_MUTED, COL_BG);
-  tft.drawString(detail, W / 2, H / 2 + 10);
+  tft.drawString(detail, vx(W / 2), vy(H / 2 + 10));
 }
 
 void drawRow(int y, int rowH, int W, const char* label, long value, long delta) {
-  tft.fillRect(0, y, W, rowH, COL_BG);
-  int cy = y + rowH / 2;
+  tft.fillRect(vx(0), vy(y), W, rowH, COL_BG);
+  int cy = vy(y + rowH / 2);
   tft.setTextDatum(middle_left);
   tft.setFont(&fonts::Font2);
   tft.setTextColor(COL_MUTED, COL_BG);
-  tft.drawString(label, 8, cy);
+  tft.drawString(label, vx(8), cy);
 
   String num = fmtNum(value);
   String d = fmtDelta(delta);
   tft.setTextDatum(middle_right);
   if (d.length()) {
     tft.setTextColor(delta > 0 ? COL_UP : COL_ERR, COL_BG);
-    tft.drawString(d, W - 8, cy);
+    tft.drawString(d, vx(W - 8), cy);
     tft.setTextColor(COL_FG, COL_BG);
-    tft.drawString(num, W - 52, cy);
+    tft.drawString(num, vx(W - 52), cy);
   } else {
     tft.setTextColor(COL_FG, COL_BG);
-    tft.drawString(num, W - 8, cy);
+    tft.drawString(num, vx(W - 8), cy);
   }
 }
 
 void drawDashboard() {
-  int W = tft.width();
-  int H = tft.height();
+  int W = layoutW();
+  int H = layoutH();
   int headH = H >= 280 ? 54 : 46;
   int footH = H >= 280 ? 26 : 20;
   int rowH = (H - headH - footH) / 6;
 
   tft.fillScreen(COL_BG);
-  tft.fillRect(0, 0, W, headH, COL_HEAD);
+  tft.fillRect(vx(0), vy(0), W, headH, COL_HEAD);
 
   tft.setTextDatum(top_left);
   tft.setFont(&fonts::Font0);
   tft.setTextColor(COL_MUTED, COL_HEAD);
-  tft.drawString("MAKERPULSE  CYD", 8, 6);
+  tft.drawString("MAKERPULSE  CYD", vx(8), vy(6));
 
   tft.setTextDatum(top_right);
-  tft.drawString(clockStr() + (WiFi.status() == WL_CONNECTED ? "  WiFi" : "  --"), W - 8, 6);
+  tft.drawString(clockStr() + (WiFi.status() == WL_CONNECTED ? "  WiFi" : "  --"), vx(W - 8), vy(6));
 
   long df = hasBaseline ? current.followers - lastSent.followers : 0;
   String fan = fmtNum(current.followers);
@@ -433,7 +435,7 @@ void drawDashboard() {
   }
   tft.setTextDatum(middle_right);
   tft.setTextColor(df > 0 ? COL_UP : COL_MUTED, COL_HEAD);
-  tft.drawString(fan, W - 8, headH - 14);
+  tft.drawString(fan, vx(W - 8), vy(headH - 14));
 
   tft.setTextDatum(middle_left);
   tft.setFont(&fonts::Font2);
@@ -442,9 +444,9 @@ void drawDashboard() {
   int nameMax = W - 16 - fanW - 6;
   if (nameMax < 16) nameMax = 16;
   while (name.length() > 1 && tft.textWidth(name) > nameMax) name.remove(name.length() - 1);
-  tft.drawString(name, 8, headH - 14);
+  tft.drawString(name, vx(8), vy(headH - 14));
 
-  tft.drawFastHLine(0, headH, W, COL_LINE);
+  tft.drawFastHLine(vx(0), vy(headH), W, COL_LINE);
 
   long dd = hasBaseline ? current.downloads - lastSent.downloads : 0;
   long dl = hasBaseline ? current.likes - lastSent.likes : 0;
@@ -467,7 +469,7 @@ void drawDashboard() {
   drawRow(y, rowH, W, "Comments", current.comments, dm);
 
   int footY = H - footH;
-  tft.drawFastHLine(0, footY, W, COL_LINE);
+  tft.drawFastHLine(vx(0), vy(footY), W, COL_LINE);
   tft.setFont(&fonts::Font0);
   tft.setTextDatum(middle_left);
   if (lastOk) {
@@ -479,18 +481,18 @@ void drawDashboard() {
     } else {
       snprintf(foot, sizeof(foot), "check %s  ·  %ds", clockStr().c_str(), cfgPoll);
     }
-    tft.drawString(foot, 8, footY + footH / 2);
+    tft.drawString(foot, vx(8), vy(footY + footH / 2));
   } else {
     tft.setTextColor(COL_ERR, COL_BG);
-    tft.drawString(lastError[0] ? lastError : "check mislukt", 8, footY + footH / 2);
+    tft.drawString(lastError[0] ? lastError : "check mislukt", vx(8), vy(footY + footH / 2));
   }
   tft.setTextDatum(middle_right);
   tft.setTextColor(COL_MUTED, COL_BG);
   if (WiFi.status() == WL_CONNECTED) {
-    tft.drawString(WiFi.localIP().toString(), W - 8, footY + footH / 2);
+    tft.drawString(WiFi.localIP().toString(), vx(W - 8), vy(footY + footH / 2));
   } else {
     bool tg = cfgToken[0] && cfgChat[0];
-    tft.drawString(tg ? "Telegram" : "geen TG", W - 8, footY + footH / 2);
+    tft.drawString(tg ? "Telegram" : "geen TG", vx(W - 8), vy(footY + footH / 2));
   }
 }
 
@@ -1740,8 +1742,15 @@ void loadUserConfig() {
   else cfgRot = (CYD_ROTATION + 1) & 3;
   if (prefs.isKey("mir")) cfgMirror = prefs.getBool("mir", false);
   else cfgMirror = true;
+  if (prefs.isKey("nx")) cfgNudgeX = prefs.getInt("nx", cfgNudgeX);
+  if (prefs.isKey("ny")) cfgNudgeY = prefs.getInt("ny", cfgNudgeY);
   prefs.end();
 }
+
+int layoutW() { return tft.width() - (cfgNudgeX > 0 ? cfgNudgeX : 0); }
+int layoutH() { return tft.height() - (cfgNudgeY > 0 ? cfgNudgeY : 0); }
+int vx(int x) { return x + cfgNudgeX; }
+int vy(int y) { return y + cfgNudgeY; }
 
 void applyOrientation() {
   uint8_t r = (uint8_t)(cfgRot & 3);
@@ -1841,6 +1850,11 @@ void sendSetupPage() {
   html += "<label class=chk><input type=checkbox name=mir";
   if (cfgMirror) html += " checked";
   html += "> Spiegelen</label>";
+  html += "<label>Beeld naar rechts</label><input name=nx type=number value=\"";
+  html += String(cfgNudgeX);
+  html += "\"><label>Beeld naar beneden</label><input name=ny type=number value=\"";
+  html += String(cfgNudgeY);
+  html += "\"><p><small>Pixels. Negatief is de andere kant. Nu 12 en -16, omdat het beeld te ver naar links en naar beneden stond.</small></p>";
   html += "<label>MQTT-broker</label><input name=mqhost maxlength=62 placeholder=\"leeg = uit\" value=\"";
   html += htmlEsc(cfgMqttHost);
   html += "\"><label>MQTT-poort</label><input name=mqport inputmode=numeric value=\"";
@@ -2168,6 +2182,14 @@ void handleSave() {
   if (rot < 0 || rot > 3) rot = cfgRot & 3;
   prefs.putInt("rot", rot);
   prefs.putBool("mir", www.hasArg("mir"));
+  int nx = www.arg("nx").toInt();
+  int ny = www.arg("ny").toInt();
+  if (nx < -80) nx = -80;
+  if (nx > 80) nx = 80;
+  if (ny < -80) ny = -80;
+  if (ny > 80) ny = 80;
+  prefs.putInt("nx", nx);
+  prefs.putInt("ny", ny);
   prefs.putUInt("mqport", (uint32_t)port);
   prefs.putUChar("nfy", nfy);
   prefs.end();
@@ -2203,51 +2225,54 @@ void handleNotFound() {
 }
 
 void drawPortal(const char* apSsid) {
-  int W = tft.width();
-  int H = tft.height();
+  int W = layoutW();
+  int H = layoutH();
   tft.fillScreen(COL_BG);
-  tft.fillRect(0, 0, W, 5, COL_GREEN);
+  tft.fillRect(vx(0), vy(0), W, 5, COL_GREEN);
   tft.setTextDatum(top_left);
   tft.setFont(&fonts::Font0);
   tft.setTextColor(COL_GREEN, COL_BG);
-  tft.drawString("MAKERPULSE", 14, 14);
+  tft.drawString("MAKERPULSE", vx(12), vy(12));
   tft.setFont(&fonts::Font2);
   tft.setTextColor(COL_FG, COL_BG);
-  tft.drawString("Instellen", 14, 30);
+  tft.drawString("Instellen", vx(12), vy(26));
 
-  int y = 64;
-  tft.fillCircle(24, y + 6, 9, COL_GREEN);
+  int y = 54;
+  tft.fillCircle(vx(22), vy(y + 6), 9, COL_GREEN);
   tft.setTextDatum(middle_center);
   tft.setFont(&fonts::Font0);
   tft.setTextColor(COL_BG, COL_GREEN);
-  tft.drawString("1", 24, y + 6);
+  tft.drawString("1", vx(22), vy(y + 6));
   tft.setTextDatum(top_left);
   tft.setFont(&fonts::Font2);
   tft.setTextColor(COL_FG, COL_BG);
-  tft.drawString("WiFi", 42, y - 4);
+  tft.drawString("WiFi", vx(40), vy(y - 2));
   tft.setFont(&fonts::Font0);
   tft.setTextColor(COL_GREEN, COL_BG);
-  tft.drawString(apSsid, 42, y + 16);
+  tft.drawString(apSsid, vx(40), vy(y + 16));
   tft.setTextColor(COL_MUTED, COL_BG);
-  tft.drawString("wachtwoord   makerpulse", 42, y + 30);
+  tft.drawString("wachtwoord   makerpulse", vx(40), vy(y + 30));
 
-  y = 118;
-  tft.fillCircle(24, y + 6, 9, COL_GREEN);
+  y = 104;
+  tft.fillCircle(vx(22), vy(y + 6), 9, COL_GREEN);
   tft.setTextDatum(middle_center);
   tft.setFont(&fonts::Font0);
   tft.setTextColor(COL_BG, COL_GREEN);
-  tft.drawString("2", 24, y + 6);
+  tft.drawString("2", vx(22), vy(y + 6));
   tft.setTextDatum(top_left);
   tft.setFont(&fonts::Font2);
   tft.setTextColor(COL_FG, COL_BG);
-  tft.drawString("Browser", 42, y - 4);
+  tft.drawString("Browser", vx(40), vy(y - 2));
   tft.setFont(&fonts::Font0);
   tft.setTextColor(COL_GREEN, COL_BG);
-  tft.drawString("192.168.4.1", 42, y + 16);
+  tft.drawString("192.168.4.1", vx(40), vy(y + 16));
   tft.setTextColor(COL_MUTED, COL_BG);
-  tft.drawString("plak een link van je model", 42, y + 30);
+  tft.drawString("plak een link van je model", vx(40), vy(y + 30));
 
-  tft.drawString("Daarna herstart dit scherm.", 14, H - 18);
+  if (H > 200) {
+    tft.setTextColor(COL_MUTED, COL_BG);
+    tft.drawString("Daarna herstart dit scherm.", vx(12), vy(H - 16));
+  }
 }
 
 bool touchPressed() {
@@ -2440,15 +2465,16 @@ void setup() {
   setupHttp();
   setupMqtt();
   tft.fillScreen(COL_BG);
+  tft.fillRect(vx(0), vy(0), layoutW(), 5, COL_GREEN);
   tft.setTextDatum(middle_center);
   tft.setFont(&fonts::Font2);
   tft.setTextColor(COL_FG, COL_BG);
-  tft.drawString("Verbonden", tft.width() / 2, tft.height() / 2 - 28);
+  tft.drawString("Verbonden", vx(layoutW() / 2), vy(layoutH() / 2 - 28));
   tft.setFont(&fonts::Font0);
   tft.setTextColor(COL_MUTED, COL_BG);
   String ip = WiFi.localIP().toString();
-  tft.drawString(ip, tft.width() / 2, tft.height() / 2);
-  tft.drawString(ip + "/setup", tft.width() / 2, tft.height() / 2 + 16);
+  tft.drawString(ip, vx(layoutW() / 2), vy(layoutH() / 2));
+  tft.drawString(ip + "/setup", vx(layoutW() / 2), vy(layoutH() / 2 + 16));
   delay(1200);
   tick();
 }
