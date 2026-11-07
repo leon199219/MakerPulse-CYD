@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026.11.07h
+
+### Fixed
+
+- The CYD is landscape. A portrait rotation was squashing the picture off the glass. Boot now forces a landscape rotation (USB left or USB right).
+- The earlier 12 px / -16 px shift is no longer applied.
+
 ## 2026.11.07g
 
 ### Fixed

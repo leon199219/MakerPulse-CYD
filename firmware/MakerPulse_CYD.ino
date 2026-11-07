@@ -1,5 +1,5 @@
-// MakerPulse CYD 2026.11.07g
-#define MAKERPULSE_FW "2026.11.07g"
+// MakerPulse CYD 2026.11.07h
+#define MAKERPULSE_FW "2026.11.07h"
 /*
  * ========== WHAT DO YOU NEED TO CHANGE? ==========
  *
@@ -261,8 +261,8 @@ int cfgTgEvery = TELEGRAM_INTERVAL_SEC;
 int cfgBlMode = BACKLIGHT_MODE;
 int cfgRot = CYD_ROTATION;
 bool cfgMirror = false;
-int cfgNudgeX = 12;
-int cfgNudgeY = -16;
+int cfgNudgeX = 0;
+int cfgNudgeY = 0;
 uint16_t cfgMqttPort = MQTT_PORT;
 uint8_t cfgNotify = (NOTIFY_DOWNLOADS ? 1 : 0) | (NOTIFY_LIKES ? 2 : 0) | (NOTIFY_PRINTS ? 4 : 0) |
                     (NOTIFY_BOOSTS ? 8 : 0) | (NOTIFY_COLLECTIONS ? 16 : 0) | (NOTIFY_COMMENTS ? 32 : 0) |
@@ -1739,11 +1739,11 @@ void loadUserConfig() {
     cfgAutoName = prefs.getBool("auton", false);
   }
   if (prefs.isKey("rot")) cfgRot = prefs.getInt("rot", cfgRot) & 3;
-  else cfgRot = (CYD_ROTATION + 1) & 3;
+  else cfgRot = CYD_ROTATION & 3;
   if (prefs.isKey("mir")) cfgMirror = prefs.getBool("mir", false);
-  else cfgMirror = true;
-  if (prefs.isKey("nx")) cfgNudgeX = prefs.getInt("nx", cfgNudgeX);
-  if (prefs.isKey("ny")) cfgNudgeY = prefs.getInt("ny", cfgNudgeY);
+  else cfgMirror = false;
+  if (prefs.isKey("ox")) cfgNudgeX = prefs.getInt("ox", 0);
+  if (prefs.isKey("oy")) cfgNudgeY = prefs.getInt("oy", 0);
   prefs.end();
 }
 
@@ -1753,9 +1753,16 @@ int vx(int x) { return x + cfgNudgeX; }
 int vy(int y) { return y + cfgNudgeY; }
 
 void applyOrientation() {
-  uint8_t r = (uint8_t)(cfgRot & 3);
-  if (cfgMirror) r |= 4;
-  tft.setRotation(r);
+  auto paint = [](uint8_t rot, bool mirror) {
+    uint8_t r = (uint8_t)(rot & 3);
+    if (mirror) r |= 4;
+    tft.setRotation(r);
+  };
+  paint(cfgRot, cfgMirror);
+  if (tft.width() < tft.height()) {
+    cfgRot = (cfgRot + 1) & 3;
+    paint(cfgRot, cfgMirror);
+  }
 }
 
 bool configUsable() {
@@ -1842,11 +1849,9 @@ void sendSetupPage() {
   html += "<label>Scherm</label><select name=bl>";
   html += String("<option value=0") + (cfgBlMode != 1 ? " selected" : "") + ">MQTT / Home Assistant</option>";
   html += String("<option value=1") + (cfgBlMode == 1 ? " selected" : "") + ">Automatisch, uit na 10 min</option></select>";
-  html += "<label>Scherm draaien</label><select name=rot>";
-  html += String("<option value=0") + (cfgRot == 0 ? " selected" : "") + ">0 graden</option>";
-  html += String("<option value=1") + (cfgRot == 1 ? " selected" : "") + ">90 graden</option>";
-  html += String("<option value=2") + (cfgRot == 2 ? " selected" : "") + ">180 graden</option>";
-  html += String("<option value=3") + (cfgRot == 3 ? " selected" : "") + ">270 graden</option></select>";
+  html += "<label>Stand</label><select name=rot>";
+  html += String("<option value=1") + (cfgRot != 3 ? " selected" : "") + ">Liggend, USB links</option>";
+  html += String("<option value=3") + (cfgRot == 3 ? " selected" : "") + ">Liggend, USB rechts</option></select>";
   html += "<label class=chk><input type=checkbox name=mir";
   if (cfgMirror) html += " checked";
   html += "> Spiegelen</label>";
@@ -1854,7 +1859,7 @@ void sendSetupPage() {
   html += String(cfgNudgeX);
   html += "\"><label>Beeld naar beneden</label><input name=ny type=number value=\"";
   html += String(cfgNudgeY);
-  html += "\"><p><small>Pixels. Negatief is de andere kant. Nu 12 en -16, omdat het beeld te ver naar links en naar beneden stond.</small></p>";
+  html += "\"><p><small>Pixels, alleen als het beeld nog een stukje verschoven is. 0 is normaal. Negatief is de andere kant.</small></p>";
   html += "<label>MQTT-broker</label><input name=mqhost maxlength=62 placeholder=\"leeg = uit\" value=\"";
   html += htmlEsc(cfgMqttHost);
   html += "\"><label>MQTT-poort</label><input name=mqport inputmode=numeric value=\"";
@@ -2179,7 +2184,7 @@ void handleSave() {
   prefs.putInt("tge", allowedEvery(www.arg("tgevery").toInt()));
   prefs.putInt("bl", www.arg("bl") == "1" ? 1 : 0);
   int rot = www.arg("rot").toInt();
-  if (rot < 0 || rot > 3) rot = cfgRot & 3;
+  if (rot != 3) rot = 1;
   prefs.putInt("rot", rot);
   prefs.putBool("mir", www.hasArg("mir"));
   int nx = www.arg("nx").toInt();
@@ -2188,8 +2193,8 @@ void handleSave() {
   if (nx > 80) nx = 80;
   if (ny < -80) ny = -80;
   if (ny > 80) ny = 80;
-  prefs.putInt("nx", nx);
-  prefs.putInt("ny", ny);
+  prefs.putInt("ox", nx);
+  prefs.putInt("oy", ny);
   prefs.putUInt("mqport", (uint32_t)port);
   prefs.putUChar("nfy", nfy);
   prefs.end();
