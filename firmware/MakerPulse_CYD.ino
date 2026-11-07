@@ -1,5 +1,5 @@
-// MakerPulse CYD 2026.11.07e
-#define MAKERPULSE_FW "2026.11.07e"
+// MakerPulse CYD 2026.11.07f
+#define MAKERPULSE_FW "2026.11.07f"
 /*
  * ========== WHAT DO YOU NEED TO CHANGE? ==========
  *
@@ -137,6 +137,7 @@ static const uint16_t COL_MUTED = 0x9CD2;
 static const uint16_t COL_LINE = 0x2966;
 static const uint16_t COL_UP = 0x864C;
 static const uint16_t COL_ERR = 0xD26A;
+static const uint16_t COL_GREEN = 0x0568;
 
 class CydDisplay : public lgfx::LGFX_Device {
 #if CYD_PANEL_ST7789
@@ -253,6 +254,8 @@ char cfgMqttHost[64] = MQTT_HOST;
 char cfgMqttUser[32] = MQTT_USER;
 char cfgMqttPass[64] = MQTT_PASS;
 uint32_t cfgUid = (uint32_t)MAKERWORLD_UID;
+char cfgQuery[160] = "";
+bool cfgAutoName = false;
 int cfgPoll = POLL_INTERVAL_SEC;
 int cfgTgEvery = TELEGRAM_INTERVAL_SEC;
 int cfgBlMode = BACKLIGHT_MODE;
@@ -1728,6 +1731,10 @@ void loadUserConfig() {
     cfgBlMode = prefs.getInt("bl", cfgBlMode);
     cfgMqttPort = (uint16_t)prefs.getUInt("mqport", cfgMqttPort);
     cfgNotify = prefs.getUChar("nfy", cfgNotify);
+    String nm = prefs.getString("name", "");
+    if (nm.length()) copyField(makerName, sizeof(makerName), nm);
+    copyField(cfgQuery, sizeof(cfgQuery), prefs.getString("qry", ""));
+    cfgAutoName = prefs.getBool("auton", false);
   }
   if (prefs.isKey("rot")) cfgRot = prefs.getInt("rot", cfgRot) & 3;
   else cfgRot = (CYD_ROTATION + 1) & 3;
@@ -1799,16 +1806,16 @@ void sendSetupPage() {
           "<div class=top><div class=mark></div><div><h1>MakerPulse</h1>"
           "<p class=sub>MakerWorld op de CYD</p></div></div>"
           "<p><small>WiFi, een modellink of UID, Telegram en MQTT. Opslaan herstart het scherm.</small></p>"
-          "<form method=POST action=/save>";
-  html += "<label>WiFi-naam</label><input name=ssid required maxlength=32 value=\"";
+          "<form id=f method=POST action=/save onsubmit=\"document.getElementById('go').textContent='Opslaan…';\">";
+  html += "<label>WiFi-naam</label><input name=ssid maxlength=32 value=\"";
   html += htmlEsc(cfgSsid);
   html += "\"><label>WiFi-wachtwoord</label><input name=pass type=password maxlength=64 value=\"";
   html += htmlEsc(cfgPass);
   html += "\"><p><small id=nets>Netwerken zoeken…</small></p><select id=pick></select>";
-  html += "<label>MakerWorld — link van een eigen model, of UID</label><input name=uid required maxlength=180 placeholder=\"https://makerworld.com/…/models/…\" value=\"";
+  html += "<label>MakerWorld — link van een eigen model, of UID</label><input name=uid maxlength=180 placeholder=\"https://makerworld.com/…/models/…\" value=\"";
   html += cfgUid ? String(cfgUid) : "";
-  html += "\"><label>Naam op het scherm</label><input name=name maxlength=22 value=\"";
-  html += htmlEsc(makerName);
+  html += "\"><label>Naam op het scherm</label><input name=name maxlength=22 placeholder=\"leeg = MakerWorld-naam\" value=\"";
+  if (makerName[0] && strcmp(makerName, "Maker") != 0) html += htmlEsc(makerName);
   html += "\"><label>Telegram-token</label><input name=token maxlength=78 value=\"";
   html += htmlEsc(cfgToken);
   html += "\"><label>Telegram chat-ID</label><input name=chat maxlength=22 value=\"";
@@ -1854,7 +1861,7 @@ void sendSetupPage() {
     html += labels[i];
     html += "</label>";
   }
-  html += "<button>Opslaan en herstarten</button>"
+  html += "<button type=submit id=go>Opslaan en herstarten</button>"
           "<button class=ghost type=submit formaction=/reset formmethod=post>Wissen en opnieuw</button>"
           "</form></div><script>fetch('/scan').then(r=>r.json()).then(list=>{"
           "const p=document.getElementById('pick');const n=document.getElementById('nets');"
@@ -1869,7 +1876,7 @@ void sendSetupPage() {
 }
 
 void handleScan() {
-  int n = WiFi.scanNetworks();
+  int n = WiFi.scanNetworks(false, false, false, 40);
   String out = "[";
   int added = 0;
   for (int i = 0; i < n && added < 15; i++) {
@@ -1918,78 +1925,15 @@ uint32_t digitsAfter(const String& s, const char* key) {
   return strtoul(s.c_str() + i, nullptr, 10);
 }
 
-bool lookupCreatorUid(uint32_t modelId, uint32_t& out) {
-  String url = String("https://api.bambulab.com/v1/design-service/design/") + String(modelId);
-  WiFiClientSecure client;
-  client.setInsecure();
-  HTTPClient http;
-  http.setTimeout(20000);
-  if (!http.begin(client, url)) return false;
-  http.addHeader("Accept", "application/json");
-  http.addHeader("User-Agent", MW_UA);
-  int code = http.GET();
-  if (code != 200) {
-    http.end();
-    return false;
-  }
-  WiFiClient* stream = http.getStreamPtr();
-  char win[120];
-  int n = 0;
-  win[0] = 0;
-  bool seen = false;
-  int after = 0;
-  unsigned long start = millis();
-  while (millis() - start < 15000) {
-    while (stream->available()) {
-      char c = (char)stream->read();
-      if (n < (int)sizeof(win) - 1) win[n++] = c;
-      else {
-        memmove(win, win + 1, sizeof(win) - 2);
-        win[sizeof(win) - 2] = c;
-        n = sizeof(win) - 1;
-      }
-      win[n] = 0;
-      if (!seen && strstr(win, "designCreator")) {
-        seen = true;
-        n = 0;
-        win[0] = 0;
-        continue;
-      }
-      if (!seen) continue;
-      after++;
-      char* u = strstr(win, "\"uid\"");
-      if (u) {
-        char* colon = strchr(u, ':');
-        if (colon) {
-          out = strtoul(colon + 1, nullptr, 10);
-          http.end();
-          return out >= 1000;
-        }
-      }
-      if (after > 600) {
-        http.end();
-        return false;
-      }
-    }
-    if (!http.connected()) break;
-    delay(1);
-  }
-  http.end();
-  return false;
-}
-
-bool joinSta(const String& ssid, const String& pass) {
-  if (WiFi.status() == WL_CONNECTED && WiFi.SSID() == ssid) return true;
-  WiFi.mode(portalMode ? WIFI_AP_STA : WIFI_STA);
-  WiFi.begin(ssid.c_str(), pass.c_str());
-  unsigned long start = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - start < 20000) delay(200);
-  return WiFi.status() == WL_CONNECTED;
-}
-
-bool resolveMakerId(const String& raw, const String& ssid, const String& pass, uint32_t& uid, String& err) {
+bool parseMakerField(const String& raw, uint32_t& uid, uint32_t& modelId, String& err) {
+  uid = 0;
+  modelId = 0;
   String text = raw;
   text.trim();
+  if (!text.length()) {
+    err = "Plak een modellink of je numerieke UID.";
+    return false;
+  }
   String low = text;
   low.toLowerCase();
   bool digits = text.length() >= 4;
@@ -2018,21 +1962,159 @@ bool resolveMakerId(const String& raw, const String& ssid, const String& pass, u
     err = "Plak de link van een eigen model (…/models/…) of je numerieke UID.";
     return false;
   }
-  if (portalMode) dnsServer.stop();
-  if (!joinSta(ssid, pass)) {
-    if (portalMode) dnsServer.start(53, "*", WiFi.softAPIP());
-    err = "Geen verbinding met dit WiFi. Controleer naam en wachtwoord.";
-    return false;
-  }
-  uint32_t found = 0;
-  bool ok = lookupCreatorUid(model, found);
-  if (portalMode) dnsServer.start(53, "*", WiFi.softAPIP());
-  if (!ok) {
-    err = "De maker van dit model is niet gevonden. Probeer een andere link, of plak de UID.";
-    return false;
-  }
-  uid = found;
+  modelId = model;
   return true;
+}
+
+bool pullJsonString(const char* win, const char* key, char* out, size_t n) {
+  if (!n) return false;
+  out[0] = 0;
+  char* h = strstr(win, key);
+  if (!h) return false;
+  char* q = strchr(h, ':');
+  if (!q) return false;
+  q = strchr(q, '"');
+  if (!q) return false;
+  q++;
+  size_t k = 0;
+  while (*q && *q != '"' && *q != '\\' && k + 1 < n) out[k++] = *q++;
+  out[k] = 0;
+  return k > 0;
+}
+
+bool readCreator(const String& url, const char* anchor, uint32_t& uid, char* handle, size_t handleN) {
+  WiFiClientSecure client;
+  client.setInsecure();
+  HTTPClient http;
+  http.useHTTP10(true);
+  http.setTimeout(12000);
+  if (!http.begin(client, url)) return false;
+  http.addHeader("Accept", "application/json");
+  http.addHeader("User-Agent", MW_UA);
+  int code = http.GET();
+  if (code != 200) {
+    http.end();
+    return false;
+  }
+  WiFiClient* stream = http.getStreamPtr();
+  char win[180];
+  int n = 0;
+  win[0] = 0;
+  bool seen = anchor == nullptr;
+  int after = 0;
+  bool gotUid = false;
+  bool gotHandle = handle == nullptr;
+  unsigned long start = millis();
+  while (millis() - start < 12000) {
+    while (stream->available()) {
+      char c = (char)stream->read();
+      if (n < (int)sizeof(win) - 1) win[n++] = c;
+      else {
+        memmove(win, win + 1, sizeof(win) - 2);
+        win[sizeof(win) - 2] = c;
+        n = sizeof(win) - 1;
+      }
+      win[n] = 0;
+      if (!seen && anchor && strstr(win, anchor)) {
+        seen = true;
+        n = 0;
+        win[0] = 0;
+        continue;
+      }
+      if (!seen) continue;
+      after++;
+      if (!gotUid) {
+        char* u = strstr(win, "\"uid\"");
+        if (u) {
+          char* colon = strchr(u, ':');
+          if (colon) {
+            uint32_t v = strtoul(colon + 1, nullptr, 10);
+            if (v >= 1000) {
+              uid = v;
+              gotUid = true;
+            }
+          }
+        }
+      }
+      if (!gotHandle && handle) {
+        if (pullJsonString(win, "\"handle\"", handle, handleN)) gotHandle = true;
+      }
+      if (gotUid && gotHandle) {
+        http.end();
+        return true;
+      }
+      if (after > 1200) break;
+    }
+    if (!http.connected()) break;
+    delay(1);
+  }
+  http.end();
+  return gotUid;
+}
+
+bool lookupCreator(uint32_t modelId, uint32_t& uid, char* handle, size_t handleN) {
+  uid = 0;
+  if (handle && handleN) handle[0] = 0;
+  String url = String("https://api.bambulab.com/v1/design-service/design/") + String(modelId);
+  return readCreator(url, "designCreator", uid, handle, handleN);
+}
+
+bool lookupProfileHandle(uint32_t uid, char* handle, size_t handleN) {
+  uint32_t ignored = 0;
+  String url = String("https://api.bambulab.com/v1/design-user-service/user/profile/") + String(uid);
+  return readCreator(url, nullptr, ignored, handle, handleN) && handle[0];
+}
+
+bool nameNeedsFetch() {
+  return cfgAutoName || !makerName[0] || strcmp(makerName, "Maker") == 0;
+}
+
+void saveIdentity() {
+  prefs.begin("cfg", false);
+  prefs.putULong("uid", cfgUid);
+  prefs.putString("name", makerName);
+  prefs.putString("qry", "");
+  prefs.putBool("auton", false);
+  prefs.end();
+  cfgQuery[0] = 0;
+  cfgAutoName = false;
+}
+
+void resolveIdentity() {
+  if (WiFi.status() != WL_CONNECTED) return;
+  bool needUid = cfgUid < 1000 && cfgQuery[0];
+  bool needName = nameNeedsFetch();
+  if (!needUid && !needName) return;
+  drawStatus("MakerWorld", needUid ? "model lezen" : "naam ophalen");
+  if (needUid) {
+    uint32_t uid = 0;
+    uint32_t model = 0;
+    String err;
+    if (!parseMakerField(cfgQuery, uid, model, err)) return;
+    if (uid >= 1000) cfgUid = uid;
+    if (model) {
+      char handle[24] = "";
+      uint32_t found = 0;
+      if (!lookupCreator(model, found, handle, sizeof(handle))) return;
+      cfgUid = found;
+      if (needName && handle[0]) copyField(makerName, sizeof(makerName), handle);
+      needName = nameNeedsFetch();
+    }
+  }
+  if (cfgUid >= 1000 && needName) {
+    char handle[24] = "";
+    if (lookupProfileHandle(cfgUid, handle, sizeof(handle)) && handle[0]) {
+      copyField(makerName, sizeof(makerName), handle);
+    }
+  }
+  if (cfgUid >= 1000 && makerName[0] && strcmp(makerName, "Maker") != 0) saveIdentity();
+  else if (cfgUid >= 1000) {
+    prefs.begin("cfg", false);
+    prefs.putULong("uid", cfgUid);
+    prefs.putString("qry", "");
+    prefs.end();
+    cfgQuery[0] = 0;
+  }
 }
 
 void handleSave() {
@@ -2045,11 +2127,17 @@ void handleSave() {
   String uidTxt = www.arg("uid");
   uidTxt.trim();
   uint32_t uid = 0;
+  uint32_t model = 0;
   String err;
-  if (!resolveMakerId(uidTxt, ssid, www.arg("pass"), uid, err)) {
-    www.send(400, "text/plain; charset=utf-8", err);
+  if (!parseMakerField(uidTxt, uid, model, err)) {
+    www.send(400, "text/html; charset=utf-8",
+             String("<!DOCTYPE html><meta charset=utf-8><body style=\"background:#101110;color:#f3f3f3;font-family:system-ui;padding:24px\">") +
+                 "<p>" + err + "</p><p><a style=\"color:#00ae42\" href=/setup>Terug</a></p></body>");
     return;
   }
+  String shown = www.arg("name");
+  shown.trim();
+  bool autoName = !shown.length() || shown == "Maker";
   uint8_t nfy = 0;
   if (www.hasArg("n1")) nfy |= 1;
   if (www.hasArg("n2")) nfy |= 2;
@@ -2064,7 +2152,9 @@ void handleSave() {
   prefs.putBool("ready", true);
   prefs.putString("ssid", ssid);
   prefs.putString("pass", www.arg("pass"));
-  prefs.putString("name", www.arg("name").length() ? www.arg("name") : "Maker");
+  prefs.putString("name", autoName ? "" : shown);
+  prefs.putBool("auton", autoName);
+  prefs.putString("qry", model ? uidTxt : "");
   prefs.putString("token", www.arg("token"));
   prefs.putString("chat", www.arg("chat"));
   prefs.putString("mqh", www.arg("mqhost"));
@@ -2081,11 +2171,12 @@ void handleSave() {
   prefs.putUInt("mqport", (uint32_t)port);
   prefs.putUChar("nfy", nfy);
   prefs.end();
+  www.sendHeader("Connection", "close");
   www.send(200, "text/html; charset=utf-8",
            "<!DOCTYPE html><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\">"
            "<body style=\"margin:0;background:#101110;color:#f3f3f3;font-family:system-ui,sans-serif;padding:28px\">"
-           "<h1 style=\"font-weight:650\">Opgeslagen</h1><p>Het scherm herstart en maakt verbinding.</p></body>");
-  delay(400);
+           "<h1 style=\"font-weight:650\">Opgeslagen</h1><p>Het scherm herstart. De MakerWorld-naam wordt vanzelf ingevuld als je het veld leeg liet.</p></body>");
+  delay(1200);
   ESP.restart();
 }
 
@@ -2112,29 +2203,51 @@ void handleNotFound() {
 }
 
 void drawPortal(const char* apSsid) {
+  int W = tft.width();
+  int H = tft.height();
   tft.fillScreen(COL_BG);
+  tft.fillRect(0, 0, W, 5, COL_GREEN);
+  tft.setTextDatum(top_left);
+  tft.setFont(&fonts::Font0);
+  tft.setTextColor(COL_GREEN, COL_BG);
+  tft.drawString("MAKERPULSE", 14, 14);
+  tft.setFont(&fonts::Font2);
+  tft.setTextColor(COL_FG, COL_BG);
+  tft.drawString("Instellen", 14, 30);
+
+  int y = 64;
+  tft.fillCircle(24, y + 6, 9, COL_GREEN);
+  tft.setTextDatum(middle_center);
+  tft.setFont(&fonts::Font0);
+  tft.setTextColor(COL_BG, COL_GREEN);
+  tft.drawString("1", 24, y + 6);
   tft.setTextDatum(top_left);
   tft.setFont(&fonts::Font2);
   tft.setTextColor(COL_FG, COL_BG);
-  tft.drawString("Instellen", 8, 8);
+  tft.drawString("WiFi", 42, y - 4);
   tft.setFont(&fonts::Font0);
-  int y = 36;
+  tft.setTextColor(COL_GREEN, COL_BG);
+  tft.drawString(apSsid, 42, y + 16);
   tft.setTextColor(COL_MUTED, COL_BG);
-  tft.drawString("1. Verbind je telefoon met", 8, y);
-  y += 16;
+  tft.drawString("wachtwoord   makerpulse", 42, y + 30);
+
+  y = 118;
+  tft.fillCircle(24, y + 6, 9, COL_GREEN);
+  tft.setTextDatum(middle_center);
+  tft.setFont(&fonts::Font0);
+  tft.setTextColor(COL_BG, COL_GREEN);
+  tft.drawString("2", 24, y + 6);
+  tft.setTextDatum(top_left);
+  tft.setFont(&fonts::Font2);
   tft.setTextColor(COL_FG, COL_BG);
-  tft.drawString(apSsid, 8, y);
-  y += 14;
-  tft.drawString("wachtwoord: makerpulse", 8, y);
-  y += 22;
+  tft.drawString("Browser", 42, y - 4);
+  tft.setFont(&fonts::Font0);
+  tft.setTextColor(COL_GREEN, COL_BG);
+  tft.drawString("192.168.4.1", 42, y + 16);
   tft.setTextColor(COL_MUTED, COL_BG);
-  tft.drawString("2. Open in de browser", 8, y);
-  y += 16;
-  tft.setTextColor(COL_FG, COL_BG);
-  tft.drawString("http://192.168.4.1", 8, y);
-  y += 22;
-  tft.setTextColor(COL_MUTED, COL_BG);
-  tft.drawString("Later wijzigen: ip/setup", 8, y);
+  tft.drawString("plak een link van je model", 42, y + 30);
+
+  tft.drawString("Daarna herstart dit scherm.", 14, H - 18);
 }
 
 bool touchPressed() {
@@ -2299,15 +2412,10 @@ void setup() {
   applyOrientation();
   if (autoBacklight()) noteActivity();
   applyBacklight(false);
-  drawStatus("MakerPulse", "CYD start...");
 
-  if (!configUsable()) runSetupPortal();
-
-  if (hasBaseline) {
-    current = lastSent;
-    lastOk = true;
-    drawDashboard();
-  }
+  bool haveWifi = cfgSsid[0] && strcmp(cfgSsid, "JOUW_WIFI_NAAM") != 0 &&
+                  strcmp(cfgPass, "JOUW_WIFI_WACHTWOORD") != 0;
+  if (!haveWifi) runSetupPortal();
 
   connectWifi();
   if (WiFi.status() != WL_CONNECTED) {
@@ -2315,6 +2423,17 @@ void setup() {
     lastOk = false;
     drawStatus("WiFi mislukt", "Tik het scherm");
     return;
+  }
+  resolveIdentity();
+  if (!configUsable()) {
+    drawStatus("Model niet gevonden", "Tik om opnieuw");
+    while (!touchPressed()) delay(40);
+    runSetupPortal();
+  }
+
+  if (hasBaseline) {
+    current = lastSent;
+    lastOk = true;
   }
 
   configTzTime("CET-1CEST,M3.5.0,M10.5.0/3", "pool.ntp.org", "time.cloudflare.com");

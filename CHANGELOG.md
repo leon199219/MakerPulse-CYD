@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026.11.07f
+
+### Fixed
+
+- Save on the phone no longer waits on MakerWorld, so Opslaan does not sit there doing nothing. The display restarts at once and reads the model itself.
+- An empty name becomes your MakerWorld username.
+
+### Changed
+
+- The setup screen on the CYD uses a green header and two numbered steps.
+
 ## 2026.11.07e
 
 ### Added
