@@ -1,5 +1,5 @@
-// MakerPulse CYD 2026.11.07b
-#define MAKERPULSE_FW "2026.11.07b"
+// MakerPulse CYD 2026.11.07c
+#define MAKERPULSE_FW "2026.11.07c"
 /*
  * ========== WHAT DO YOU NEED TO CHANGE? ==========
  *
@@ -1762,14 +1762,14 @@ void sendSetupPage() {
           "button{margin-top:14px;width:100%;padding:12px;border:0;border-radius:8px;background:#e8e6df;font-weight:600}"
           ".ghost{background:#2a2e32;color:#eee}.chk{display:flex;align-items:center;gap:8px;margin:6px 0}"
           "small{color:#9a9b96}</style></head><body><h1>MakerPulse</h1>"
-          "<p><small>WiFi, MakerWorld, Telegram en MQTT. Opslaan herstart het scherm.</small></p>"
+          "<p><small>WiFi, een modellink of UID, Telegram en MQTT. Opslaan herstart het scherm.</small></p>"
           "<form method=POST action=/save>";
   html += "<label>WiFi-naam</label><input name=ssid required maxlength=32 value=\"";
   html += htmlEsc(cfgSsid);
   html += "\"><label>WiFi-wachtwoord</label><input name=pass type=password maxlength=64 value=\"";
   html += htmlEsc(cfgPass);
   html += "\"><p><small id=nets>Netwerken zoeken…</small></p><select id=pick></select>";
-  html += "<label>MakerWorld UID</label><input name=uid inputmode=numeric required value=\"";
+  html += "<label>MakerWorld — link van een eigen model, of UID</label><input name=uid required maxlength=180 placeholder=\"https://makerworld.com/…/models/…\" value=\"";
   html += cfgUid ? String(cfgUid) : "";
   html += "\"><label>Naam op het scherm</label><input name=name maxlength=22 value=\"";
   html += htmlEsc(makerName);
@@ -1862,14 +1862,148 @@ int allowedEvery(int v) {
   return 0;
 }
 
+uint32_t digitsAfter(const String& s, const char* key) {
+  int i = s.indexOf(key);
+  if (i < 0) return 0;
+  i += strlen(key);
+  while (i < (int)s.length() && !isdigit(s[i])) {
+    if (s[i] != '/') break;
+    i++;
+  }
+  if (i >= (int)s.length() || !isdigit(s[i])) return 0;
+  return strtoul(s.c_str() + i, nullptr, 10);
+}
+
+bool lookupCreatorUid(uint32_t modelId, uint32_t& out) {
+  String url = String("https://api.bambulab.com/v1/design-service/design/") + String(modelId);
+  WiFiClientSecure client;
+  client.setInsecure();
+  HTTPClient http;
+  http.setTimeout(20000);
+  if (!http.begin(client, url)) return false;
+  http.addHeader("Accept", "application/json");
+  http.addHeader("User-Agent", MW_UA);
+  int code = http.GET();
+  if (code != 200) {
+    http.end();
+    return false;
+  }
+  WiFiClient* stream = http.getStreamPtr();
+  char win[120];
+  int n = 0;
+  win[0] = 0;
+  bool seen = false;
+  int after = 0;
+  unsigned long start = millis();
+  while (millis() - start < 15000) {
+    while (stream->available()) {
+      char c = (char)stream->read();
+      if (n < (int)sizeof(win) - 1) win[n++] = c;
+      else {
+        memmove(win, win + 1, sizeof(win) - 2);
+        win[sizeof(win) - 2] = c;
+        n = sizeof(win) - 1;
+      }
+      win[n] = 0;
+      if (!seen && strstr(win, "designCreator")) {
+        seen = true;
+        n = 0;
+        win[0] = 0;
+        continue;
+      }
+      if (!seen) continue;
+      after++;
+      char* u = strstr(win, "\"uid\"");
+      if (u) {
+        char* colon = strchr(u, ':');
+        if (colon) {
+          out = strtoul(colon + 1, nullptr, 10);
+          http.end();
+          return out >= 1000;
+        }
+      }
+      if (after > 600) {
+        http.end();
+        return false;
+      }
+    }
+    if (!http.connected()) break;
+    delay(1);
+  }
+  http.end();
+  return false;
+}
+
+bool joinSta(const String& ssid, const String& pass) {
+  if (WiFi.status() == WL_CONNECTED && WiFi.SSID() == ssid) return true;
+  WiFi.mode(portalMode ? WIFI_AP_STA : WIFI_STA);
+  WiFi.begin(ssid.c_str(), pass.c_str());
+  unsigned long start = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - start < 20000) delay(200);
+  return WiFi.status() == WL_CONNECTED;
+}
+
+bool resolveMakerId(const String& raw, const String& ssid, const String& pass, uint32_t& uid, String& err) {
+  String text = raw;
+  text.trim();
+  String low = text;
+  low.toLowerCase();
+  bool digits = text.length() >= 4;
+  for (unsigned i = 0; digits && i < text.length(); i++) {
+    if (!isdigit(text[i])) digits = false;
+  }
+  if (digits) {
+    uid = strtoul(text.c_str(), nullptr, 10);
+    if (uid < 1000) {
+      err = "Die UID is te kort.";
+      return false;
+    }
+    return true;
+  }
+  uint32_t direct = digitsAfter(low, "/u/");
+  if (!direct) direct = digitsAfter(low, "/avatar/");
+  if (direct >= 1000) {
+    uid = direct;
+    return true;
+  }
+  uint32_t model = digitsAfter(low, "/models/");
+  if (!model) model = digitsAfter(low, "/model/");
+  if (!model) model = digitsAfter(low, "/designs/");
+  if (!model) model = digitsAfter(low, "/design/");
+  if (model < 1000) {
+    err = "Plak de link van een eigen model (…/models/…) of je numerieke UID.";
+    return false;
+  }
+  if (portalMode) dnsServer.stop();
+  if (!joinSta(ssid, pass)) {
+    if (portalMode) dnsServer.start(53, "*", WiFi.softAPIP());
+    err = "Geen verbinding met dit WiFi. Controleer naam en wachtwoord.";
+    return false;
+  }
+  uint32_t found = 0;
+  bool ok = lookupCreatorUid(model, found);
+  if (portalMode) dnsServer.start(53, "*", WiFi.softAPIP());
+  if (!ok) {
+    err = "De maker van dit model is niet gevonden. Probeer een andere link, of plak de UID.";
+    return false;
+  }
+  uid = found;
+  return true;
+}
+
 void handleSave() {
   String ssid = www.arg("ssid");
   ssid.trim();
+  if (ssid.length() < 1 || ssid.length() > 32) {
+    www.send(400, "text/plain; charset=utf-8", "Vul een WiFi-naam in.");
+    return;
+  }
   String uidTxt = www.arg("uid");
   uidTxt.trim();
-  uint32_t uid = strtoul(uidTxt.c_str(), nullptr, 10);
-  if (ssid.length() < 1 || ssid.length() > 32 || uid < 1000) {
-    www.send(400, "text/plain; charset=utf-8", "Vul een WiFi-naam en een numerieke MakerWorld-UID in.");
+  uint32_t uid = 0;
+  String err;
+  if (!resolveMakerId(uidTxt, ssid, www.arg("pass"), uid, err)) {
+    www.send(400, "text/plain; charset=utf-8", err);
     return;
   }
   uint8_t nfy = 0;

@@ -8,7 +8,7 @@ Downloads, likes, prints, boosts, collections and comments — when a value chan
 
 After flashing, the CYD talks to MakerWorld on its own. You can close the browser.
 
-**Firmware:** [`2026.11.07b`](firmware/MakerPulse_CYD.ino) · **License:** [MIT](LICENSE)
+**Firmware:** [`2026.11.07c`](firmware/MakerPulse_CYD.ino) · **License:** [MIT](LICENSE)
 
 ## What it does
 
@@ -32,7 +32,7 @@ No MakerWorld login, no third-party cloud. Public profile and model data only.
 1. Open `firmware/MakerPulse_CYD.ino`. `config.h` is optional.
 2. Board **ESP32 Dev Module**, flash **4MB**, partition **Default 4MB with spiffs**. Libraries: **LovyanGFX**, **ArduinoJson 7**, **PubSubClient**.
 3. Upload. The screen shows Wi-Fi `MakerPulse-….`, password `makerpulse`, and `http://192.168.4.1`.
-4. Join that network and set your home Wi-Fi, MakerWorld UID, Telegram and MQTT. The display restarts.
+4. Join that network and set your home Wi-Fi, a link to one of your own models (the UID is read from it), Telegram and MQTT. The display restarts.
 5. Change them later at `http://<ip>/setup`. If Wi-Fi fails, tap the screen to open the setup network again.
 
 ### Or fill in config.h first

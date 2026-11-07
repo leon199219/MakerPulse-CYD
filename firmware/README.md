@@ -1,6 +1,6 @@
 # MakerPulse for ESP32-2432S028 (CYD)
 
-This folder is the Arduino sketch. You can flash it without editing anything: the screen then tells you to join Wi-Fi **MakerPulse-…** (password `makerpulse`) and open **http://192.168.4.1**. Or copy `config.h.example` to `config.h` first, or download a zip from the configurator (then `config.h` is already filled in). A setup saved on the device overrides `config.h`.
+This folder is the Arduino sketch. You can flash it without editing anything: the screen then tells you to join Wi-Fi **MakerPulse-…** (password `makerpulse`) and open **http://192.168.4.1**. Paste a link to one of your own models (or a numeric UID). Or copy `config.h.example` to `config.h` first, or download a zip from the configurator (then `config.h` is already filled in). A setup saved on the device overrides `config.h`.
 
 The sketch shows your MakerWorld stats on the 2.8" screen (downloads, likes, prints, boosts, collections, comments) and sends a Telegram message on changes, including the model title. **Downloads** is the total of your published models (`myDesignDownloadCount`), not the broader profile download counter. **Comments** is the sum of the Reviews & Ratings count on each model page, not the lower number from the model list. The module keeps checking on its own — you can close the browser.
 

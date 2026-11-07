@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026.11.07c
+
+### Added
+
+- The on-device setup page accepts a link to one of your models instead of a numeric UID. The display joins your Wi-Fi, reads the maker id from that model, and stores it.
+- A profile URL with `/u/…` or an avatar URL still works, and a numeric UID still works.
+
 ## 2026.11.07b
 
 ### Added
