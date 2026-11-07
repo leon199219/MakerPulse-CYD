@@ -1,17 +1,20 @@
-// MakerPulse CYD 2026.11.07a
-#define MAKERPULSE_FW "2026.11.07a"
+// MakerPulse CYD 2026.11.07b
+#define MAKERPULSE_FW "2026.11.07b"
 /*
  * ========== WHAT DO YOU NEED TO CHANGE? ==========
  *
- * A) Zip from the MakerPulse configurator
+ * A) Flash this sketch and follow the screen
+ *    No config.h needed. The CYD opens Wi-Fi "MakerPulse-...."
+ *    (password makerpulse). Open http://192.168.4.1 and fill in
+ *    Wi-Fi, MakerWorld, Telegram and MQTT. Later: http://<ip>/setup
+ *
+ * B) Zip from the MakerPulse configurator
  *    Nothing. Wi-Fi, MakerWorld ID, Telegram and MQTT are already in config.h.
  *    Choose board "ESP32 Dev Module" and click Upload.
  *
- * B) From GitHub / without the configurator
- *    1. Copy config.h.example to config.h (same folder as this .ino).
- *    2. Open config.h — every line has an English comment.
- *    3. Replace JOUW_WIFI_NAAM, JOUW_WIFI_WACHTWOORD and MAKERWORLD_UID 0UL.
- *    Or: no config.h? Fill in the "Manual settings" block below.
+ * C) config.h by hand
+ *    Copy config.h.example to config.h and fill it in.
+ *    A saved setup page overrides config.h.
  *
  * Arduino IDE (once):
  *    Board: ESP32 Dev Module · Flash 4MB · Partition "Default 4MB with spiffs"
@@ -30,6 +33,7 @@
 #include <Preferences.h>
 #include <time.h>
 #include <WebServer.h>
+#include <DNSServer.h>
 #include <ESPmDNS.h>
 #include <PubSubClient.h>
 #include <string.h>
@@ -241,6 +245,24 @@ bool hasBaseline = false;
 time_t lastDigestUnix = 0;
 unsigned long lastDigestMs = 0;
 char makerName[24] = MAKER_NAME;
+char cfgSsid[33] = WIFI_SSID;
+char cfgPass[65] = WIFI_PASSWORD;
+char cfgToken[80] = TELEGRAM_BOT_TOKEN;
+char cfgChat[24] = TELEGRAM_CHAT_ID;
+char cfgMqttHost[64] = MQTT_HOST;
+char cfgMqttUser[32] = MQTT_USER;
+char cfgMqttPass[64] = MQTT_PASS;
+uint32_t cfgUid = (uint32_t)MAKERWORLD_UID;
+int cfgPoll = POLL_INTERVAL_SEC;
+int cfgTgEvery = TELEGRAM_INTERVAL_SEC;
+int cfgBlMode = BACKLIGHT_MODE;
+uint16_t cfgMqttPort = MQTT_PORT;
+uint8_t cfgNotify = (NOTIFY_DOWNLOADS ? 1 : 0) | (NOTIFY_LIKES ? 2 : 0) | (NOTIFY_PRINTS ? 4 : 0) |
+                    (NOTIFY_BOOSTS ? 8 : 0) | (NOTIFY_COLLECTIONS ? 16 : 0) | (NOTIFY_COMMENTS ? 32 : 0) |
+                    (NOTIFY_FOLLOWERS ? 64 : 0);
+bool portalMode = false;
+DNSServer dnsServer;
+static const char AP_PASS[] = "makerpulse";
 char lastError[40] = "";
 bool lastOk = false;
 int censusFound = 0;
@@ -254,7 +276,7 @@ PubSubClient mqtt(mqttNet);
 bool blOn = true;
 uint8_t blBright = 255;
 unsigned long lastActivityMs = 0;
-bool autoBacklight() { return BACKLIGHT_MODE == 1; }
+bool autoBacklight() { return cfgBlMode == 1; }
 char mqttClientId[28] = "";
 char topicCmd[48] = "";
 char topicState[48] = "";
@@ -264,7 +286,7 @@ char topicDisc[64] = "";
 
 void serviceNet();
 
-bool mqttEnabled() { return MQTT_HOST[0] != '\0'; }
+bool mqttEnabled() { return cfgMqttHost[0] != '\0'; }
 
 bool httpsGet(const String& url, String& body) {
   WiFiClientSecure client;
@@ -448,9 +470,9 @@ void drawDashboard() {
     char foot[56];
     if (censusTotal > 0) {
       snprintf(foot, sizeof(foot), "%s  %d/%d  %ds", clockStr().c_str(), censusFound, censusTotal,
-               POLL_INTERVAL_SEC);
+               cfgPoll);
     } else {
-      snprintf(foot, sizeof(foot), "check %s  ·  %ds", clockStr().c_str(), POLL_INTERVAL_SEC);
+      snprintf(foot, sizeof(foot), "check %s  ·  %ds", clockStr().c_str(), cfgPoll);
     }
     tft.drawString(foot, 8, footY + footH / 2);
   } else {
@@ -462,7 +484,7 @@ void drawDashboard() {
   if (WiFi.status() == WL_CONNECTED) {
     tft.drawString(WiFi.localIP().toString(), W - 8, footY + footH / 2);
   } else {
-    bool tg = strlen(TELEGRAM_BOT_TOKEN) > 0 && strlen(TELEGRAM_CHAT_ID) > 0;
+    bool tg = cfgToken[0] && cfgChat[0];
     tft.drawString(tg ? "Telegram" : "geen TG", W - 8, footY + footH / 2);
   }
 }
@@ -515,12 +537,12 @@ const AllSnap* findPrevAll(uint32_t id) {
 
 void queueAlert(const char* title, long dDl, long dLk, long dPr, long dBs, long dCo, long dCm) {
   if (!hasBaseline) return;
-  if (!NOTIFY_DOWNLOADS) dDl = 0;
-  if (!NOTIFY_LIKES) dLk = 0;
-  if (!NOTIFY_PRINTS) dPr = 0;
-  if (!NOTIFY_BOOSTS) dBs = 0;
-  if (!NOTIFY_COLLECTIONS) dCo = 0;
-  if (!NOTIFY_COMMENTS) dCm = 0;
+  if (!(cfgNotify & 1)) dDl = 0;
+  if (!(cfgNotify & 2)) dLk = 0;
+  if (!(cfgNotify & 4)) dPr = 0;
+  if (!(cfgNotify & 8)) dBs = 0;
+  if (!(cfgNotify & 16)) dCo = 0;
+  if (!(cfgNotify & 32)) dCm = 0;
   if (!dDl && !dLk && !dPr && !dBs && !dCo && !dCm) return;
   if (alertCount >= MAX_ALERTS) return;
   strncpy(alerts[alertCount].title, title, sizeof(alerts[alertCount].title) - 1);
@@ -995,7 +1017,7 @@ bool fetchDesignCommentCount(HTTPClient& http, WiFiClientSecure& client, uint32_
 
 bool fetchPublishedPage(HTTPClient& http, WiFiClientSecure& client, int offset, String& body) {
   String url = String("https://api.bambulab.com/v1/design-service/publisheddesigns/") +
-               String((unsigned long)MAKERWORLD_UID) + "?type=ALL&limit=" + String(PUBLISH_LIMIT) +
+               String((unsigned long)cfgUid) + "?type=ALL&limit=" + String(PUBLISH_LIMIT) +
                "&offset=" + String(offset);
   for (int attempt = 0; attempt < 2; attempt++) {
     if (attempt) {
@@ -1150,7 +1172,7 @@ bool fetchStats() {
   commentsReady = false;
   {
     String url = String("https://api.bambulab.com/v1/design-user-service/user/profile/") +
-                 String((unsigned long)MAKERWORLD_UID);
+                 String((unsigned long)cfgUid);
     String body;
     if (!httpsGet(url, body) || !jsonHasProfileShape(body)) {
       strncpy(lastError, "MakerWorld offline", sizeof(lastError) - 1);
@@ -1217,14 +1239,14 @@ bool fetchStats() {
 }
 
 bool telegramEnabled() {
-  return strlen(TELEGRAM_BOT_TOKEN) > 0 && strlen(TELEGRAM_CHAT_ID) > 0;
+  return cfgToken[0] && cfgChat[0];
 }
 
 bool sendTelegram(const String& text) {
   if (!telegramEnabled()) return true;
-  String url = String("https://api.telegram.org/bot") + TELEGRAM_BOT_TOKEN + "/sendMessage";
+  String url = String("https://api.telegram.org/bot") + cfgToken + "/sendMessage";
   JsonDocument msg;
-  msg["chat_id"] = TELEGRAM_CHAT_ID;
+  msg["chat_id"] = cfgChat;
   msg["text"] = text;
   msg["disable_web_page_preview"] = true;
   String payload;
@@ -1269,8 +1291,8 @@ String periodLabel(unsigned long sec) {
 }
 
 unsigned long telegramEverySec() {
-  unsigned long every = (unsigned long)TELEGRAM_INTERVAL_SEC;
-  unsigned long poll = (unsigned long)POLL_INTERVAL_SEC;
+  unsigned long every = (unsigned long)cfgTgEvery;
+  unsigned long poll = (unsigned long)cfgPoll;
   if (every < poll) every = poll;
   return every;
 }
@@ -1325,13 +1347,13 @@ String buildAlert() {
   s += "Samenvatting · ";
   s += periodLabel(digestElapsedSec());
   s += "\n\n";
-  if (NOTIFY_DOWNLOADS) appendTotal(s, "Downloads", current.downloads, lastSent.downloads);
-  if (NOTIFY_LIKES) appendTotal(s, "Likes", current.likes, lastSent.likes);
-  if (NOTIFY_PRINTS) appendTotal(s, "Prints", current.prints, lastSent.prints);
-  if (NOTIFY_BOOSTS) appendTotal(s, "Boosts", current.boosts, lastSent.boosts);
-  if (NOTIFY_COLLECTIONS) appendTotal(s, "Collecties", current.collections, lastSent.collections);
-  if (NOTIFY_COMMENTS) appendTotal(s, "Comments", current.comments, lastSent.comments);
-  if (NOTIFY_FOLLOWERS) appendTotal(s, "Volgers", current.followers, lastSent.followers);
+  if (cfgNotify & 1) appendTotal(s, "Downloads", current.downloads, lastSent.downloads);
+  if (cfgNotify & 2) appendTotal(s, "Likes", current.likes, lastSent.likes);
+  if (cfgNotify & 4) appendTotal(s, "Prints", current.prints, lastSent.prints);
+  if (cfgNotify & 8) appendTotal(s, "Boosts", current.boosts, lastSent.boosts);
+  if (cfgNotify & 16) appendTotal(s, "Collecties", current.collections, lastSent.collections);
+  if (cfgNotify & 32) appendTotal(s, "Comments", current.comments, lastSent.comments);
+  if (cfgNotify & 64) appendTotal(s, "Volgers", current.followers, lastSent.followers);
 
   if (alertCount > 0) {
     s += "\n";
@@ -1361,13 +1383,13 @@ String buildAlert() {
 bool notableChange() {
   if (!hasBaseline) return false;
   if (alertCount > 0) return true;
-  if (NOTIFY_DOWNLOADS && current.downloads != lastSent.downloads) return true;
-  if (NOTIFY_LIKES && current.likes != lastSent.likes) return true;
-  if (NOTIFY_PRINTS && current.prints != lastSent.prints) return true;
-  if (NOTIFY_BOOSTS && current.boosts != lastSent.boosts) return true;
-  if (NOTIFY_COLLECTIONS && current.collections != lastSent.collections) return true;
-  if (NOTIFY_COMMENTS && current.comments != lastSent.comments) return true;
-  if (NOTIFY_FOLLOWERS && current.followers != lastSent.followers) return true;
+  if ((cfgNotify & 1) && current.downloads != lastSent.downloads) return true;
+  if ((cfgNotify & 2) && current.likes != lastSent.likes) return true;
+  if ((cfgNotify & 4) && current.prints != lastSent.prints) return true;
+  if ((cfgNotify & 8) && current.boosts != lastSent.boosts) return true;
+  if ((cfgNotify & 16) && current.collections != lastSent.collections) return true;
+  if ((cfgNotify & 32) && current.comments != lastSent.comments) return true;
+  if ((cfgNotify & 64) && current.followers != lastSent.followers) return true;
   return false;
 }
 
@@ -1625,8 +1647,8 @@ void ensureMqtt() {
   if (millis() - lastTry < 4000) return;
   lastTry = millis();
   bool ok;
-  if (MQTT_USER[0]) {
-    ok = mqtt.connect(mqttClientId, MQTT_USER, MQTT_PASS, topicAvail, 1, true, "offline");
+  if (cfgMqttUser[0]) {
+    ok = mqtt.connect(mqttClientId, cfgMqttUser, cfgMqttPass, topicAvail, 1, true, "offline");
   } else {
     ok = mqtt.connect(mqttClientId, topicAvail, 1, true, "offline");
   }
@@ -1649,7 +1671,7 @@ void setupMqtt() {
   snprintf(topicAvail, sizeof(topicAvail), "makerpulse/%s/status", mac.c_str());
   snprintf(topicStats, sizeof(topicStats), "makerpulse/%s/stats", mac.c_str());
   snprintf(topicDisc, sizeof(topicDisc), "homeassistant/light/%s/config", mqttClientId);
-  mqtt.setServer(MQTT_HOST, MQTT_PORT);
+  mqtt.setServer(cfgMqttHost, cfgMqttPort);
   mqtt.setCallback(mqttCallback);
   mqtt.setBufferSize(1536);
 }
@@ -1681,7 +1703,268 @@ void handleLight() {
   www.send(200, "application/json", lightJson());
 }
 
+void copyField(char* dst, size_t n, const String& src) {
+  if (!n) return;
+  strncpy(dst, src.c_str(), n - 1);
+  dst[n - 1] = 0;
+}
+
+void loadUserConfig() {
+  prefs.begin("cfg", true);
+  if (prefs.getBool("ready", false)) {
+    copyField(cfgSsid, sizeof(cfgSsid), prefs.getString("ssid", cfgSsid));
+    copyField(cfgPass, sizeof(cfgPass), prefs.getString("pass", cfgPass));
+    copyField(makerName, sizeof(makerName), prefs.getString("name", makerName));
+    copyField(cfgToken, sizeof(cfgToken), prefs.getString("token", cfgToken));
+    copyField(cfgChat, sizeof(cfgChat), prefs.getString("chat", cfgChat));
+    copyField(cfgMqttHost, sizeof(cfgMqttHost), prefs.getString("mqh", cfgMqttHost));
+    copyField(cfgMqttUser, sizeof(cfgMqttUser), prefs.getString("mqu", cfgMqttUser));
+    copyField(cfgMqttPass, sizeof(cfgMqttPass), prefs.getString("mqp", cfgMqttPass));
+    cfgUid = prefs.getULong("uid", cfgUid);
+    cfgPoll = prefs.getInt("poll", cfgPoll);
+    cfgTgEvery = prefs.getInt("tge", cfgTgEvery);
+    cfgBlMode = prefs.getInt("bl", cfgBlMode);
+    cfgMqttPort = (uint16_t)prefs.getUInt("mqport", cfgMqttPort);
+    cfgNotify = prefs.getUChar("nfy", cfgNotify);
+  }
+  prefs.end();
+}
+
+bool configUsable() {
+  if (!cfgUid || !cfgSsid[0]) return false;
+  if (strcmp(cfgSsid, "JOUW_WIFI_NAAM") == 0) return false;
+  if (strcmp(cfgPass, "JOUW_WIFI_WACHTWOORD") == 0) return false;
+  return true;
+}
+
+String htmlEsc(const String& in) {
+  String o;
+  o.reserve(in.length() + 4);
+  for (unsigned i = 0; i < in.length(); i++) {
+    char c = in[i];
+    if (c == '&') o += "&";
+    else if (c == '<') o += "<";
+    else if (c == '"') o += """;
+    else o += c;
+  }
+  return o;
+}
+
+void sendSetupPage() {
+  String html;
+  html.reserve(4200);
+  html += "<!DOCTYPE html><html><head><meta charset=utf-8>"
+          "<meta name=viewport content=\"width=device-width,initial-scale=1\">"
+          "<title>MakerPulse</title><style>"
+          "body{font-family:sans-serif;background:#14161a;color:#eee;margin:0;padding:16px}"
+          "h1{font-size:1.3rem}label{display:block;margin:12px 0 4px;font-size:14px}"
+          "input,select{width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1px solid #333;background:#1c1f24;color:#fff}"
+          "button{margin-top:14px;width:100%;padding:12px;border:0;border-radius:8px;background:#e8e6df;font-weight:600}"
+          ".ghost{background:#2a2e32;color:#eee}.chk{display:flex;align-items:center;gap:8px;margin:6px 0}"
+          "small{color:#9a9b96}</style></head><body><h1>MakerPulse</h1>"
+          "<p><small>WiFi, MakerWorld, Telegram en MQTT. Opslaan herstart het scherm.</small></p>"
+          "<form method=POST action=/save>";
+  html += "<label>WiFi-naam</label><input name=ssid required maxlength=32 value=\"";
+  html += htmlEsc(cfgSsid);
+  html += "\"><label>WiFi-wachtwoord</label><input name=pass type=password maxlength=64 value=\"";
+  html += htmlEsc(cfgPass);
+  html += "\"><p><small id=nets>Netwerken zoeken…</small></p><select id=pick></select>";
+  html += "<label>MakerWorld UID</label><input name=uid inputmode=numeric required value=\"";
+  html += cfgUid ? String(cfgUid) : "";
+  html += "\"><label>Naam op het scherm</label><input name=name maxlength=22 value=\"";
+  html += htmlEsc(makerName);
+  html += "\"><label>Telegram-token</label><input name=token maxlength=78 value=\"";
+  html += htmlEsc(cfgToken);
+  html += "\"><label>Telegram chat-ID</label><input name=chat maxlength=22 value=\"";
+  html += htmlEsc(cfgChat);
+  html += "\"><label>Telegram-samenvatting</label><select name=tgevery>";
+  html += String("<option value=0") + (cfgTgEvery == 0 ? " selected" : "") + ">Elke check</option>";
+  html += String("<option value=3600") + (cfgTgEvery == 3600 ? " selected" : "") + ">1 uur</option>";
+  html += String("<option value=21600") + (cfgTgEvery == 21600 ? " selected" : "") + ">6 uur</option>";
+  html += String("<option value=86400") + (cfgTgEvery == 86400 ? " selected" : "") + ">24 uur</option></select>";
+  html += "<label>Check-interval</label><select name=poll>";
+  html += String("<option value=120") + (cfgPoll == 120 ? " selected" : "") + ">2 min</option>";
+  html += String("<option value=300") + (cfgPoll == 300 ? " selected" : "") + ">5 min</option>";
+  html += String("<option value=600") + (cfgPoll == 600 ? " selected" : "") + ">10 min</option>";
+  html += String("<option value=900") + (cfgPoll == 900 ? " selected" : "") + ">15 min</option></select>";
+  html += "<label>Scherm</label><select name=bl>";
+  html += String("<option value=0") + (cfgBlMode != 1 ? " selected" : "") + ">MQTT / Home Assistant</option>";
+  html += String("<option value=1") + (cfgBlMode == 1 ? " selected" : "") + ">Automatisch, uit na 10 min</option></select>";
+  html += "<label>MQTT-broker</label><input name=mqhost maxlength=62 placeholder=\"leeg = uit\" value=\"";
+  html += htmlEsc(cfgMqttHost);
+  html += "\"><label>MQTT-poort</label><input name=mqport inputmode=numeric value=\"";
+  html += String(cfgMqttPort ? cfgMqttPort : 1883);
+  html += "\"><label>MQTT-gebruiker</label><input name=mquser maxlength=30 value=\"";
+  html += htmlEsc(cfgMqttUser);
+  html += "\"><label>MQTT-wachtwoord</label><input name=mqpass type=password maxlength=62 value=\"";
+  html += htmlEsc(cfgMqttPass);
+  html += "\"><p>Telegram bij</p>";
+  const char* bits[] = {"n1", "n2", "n4", "n8", "n16", "n32", "n64"};
+  const char* labels[] = {"Downloads", "Likes", "Prints", "Boosts", "Collecties", "Comments", "Volgers"};
+  const uint8_t masks[] = {1, 2, 4, 8, 16, 32, 64};
+  for (int i = 0; i < 7; i++) {
+    html += "<label class=chk><input type=checkbox name=";
+    html += bits[i];
+    if (cfgNotify & masks[i]) html += " checked";
+    html += "> ";
+    html += labels[i];
+    html += "</label>";
+  }
+  html += "<button>Opslaan en herstarten</button>"
+          "<button class=ghost type=submit formaction=/reset formmethod=post>Wissen en opnieuw</button>"
+          "</form><script>fetch('/scan').then(r=>r.json()).then(list=>{"
+          "const p=document.getElementById('pick');const n=document.getElementById('nets');"
+          "const ssid=document.querySelector('[name=ssid]');"
+          "if(!list.length){n.textContent='Geen netwerken gevonden. Typ de naam hierboven.';return;}"
+          "n.textContent='Of kies een gevonden netwerk:';"
+          "list.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;"
+          "if(s===ssid.value)o.selected=true;p.appendChild(o);});"
+          "p.onchange=()=>{if(p.value)ssid.value=p.value;};"
+          "}).catch(()=>{document.getElementById('nets').textContent='';});</script></body></html>";
+  www.send(200, "text/html; charset=utf-8", html);
+}
+
+void handleScan() {
+  int n = WiFi.scanNetworks();
+  String out = "[";
+  int added = 0;
+  for (int i = 0; i < n && added < 15; i++) {
+    String s = WiFi.SSID(i);
+    if (!s.length()) continue;
+    bool dup = false;
+    for (int j = 0; j < i; j++) {
+      if (WiFi.SSID(j) == s) {
+        dup = true;
+        break;
+      }
+    }
+    if (dup) continue;
+    if (added) out += ',';
+    out += '"';
+    s.replace("\\", "");
+    s.replace("\"", "'");
+    out += s;
+    out += '"';
+    added++;
+  }
+  out += ']';
+  WiFi.scanDelete();
+  www.send(200, "application/json", out);
+}
+
+int allowedPoll(int v) {
+  if (v == 120 || v == 600 || v == 900) return v;
+  return 300;
+}
+
+int allowedEvery(int v) {
+  if (v == 3600 || v == 21600 || v == 86400) return v;
+  return 0;
+}
+
+void handleSave() {
+  String ssid = www.arg("ssid");
+  ssid.trim();
+  String uidTxt = www.arg("uid");
+  uidTxt.trim();
+  uint32_t uid = strtoul(uidTxt.c_str(), nullptr, 10);
+  if (ssid.length() < 1 || ssid.length() > 32 || uid < 1000) {
+    www.send(400, "text/plain; charset=utf-8", "Vul een WiFi-naam en een numerieke MakerWorld-UID in.");
+    return;
+  }
+  uint8_t nfy = 0;
+  if (www.hasArg("n1")) nfy |= 1;
+  if (www.hasArg("n2")) nfy |= 2;
+  if (www.hasArg("n4")) nfy |= 4;
+  if (www.hasArg("n8")) nfy |= 8;
+  if (www.hasArg("n16")) nfy |= 16;
+  if (www.hasArg("n32")) nfy |= 32;
+  if (www.hasArg("n64")) nfy |= 64;
+  int port = www.arg("mqport").toInt();
+  if (port < 1 || port > 65535) port = 1883;
+  prefs.begin("cfg", false);
+  prefs.putBool("ready", true);
+  prefs.putString("ssid", ssid);
+  prefs.putString("pass", www.arg("pass"));
+  prefs.putString("name", www.arg("name").length() ? www.arg("name") : "Maker");
+  prefs.putString("token", www.arg("token"));
+  prefs.putString("chat", www.arg("chat"));
+  prefs.putString("mqh", www.arg("mqhost"));
+  prefs.putString("mqu", www.arg("mquser"));
+  prefs.putString("mqp", www.arg("mqpass"));
+  prefs.putULong("uid", uid);
+  prefs.putInt("poll", allowedPoll(www.arg("poll").toInt()));
+  prefs.putInt("tge", allowedEvery(www.arg("tgevery").toInt()));
+  prefs.putInt("bl", www.arg("bl") == "1" ? 1 : 0);
+  prefs.putUInt("mqport", (uint32_t)port);
+  prefs.putUChar("nfy", nfy);
+  prefs.end();
+  www.send(200, "text/html; charset=utf-8",
+           "<!DOCTYPE html><meta charset=utf-8><body style=\"font-family:sans-serif;background:#14161a;color:#eee;padding:24px\">"
+           "<h1>Opgeslagen</h1><p>Het scherm herstart en maakt verbinding.</p></body>");
+  delay(400);
+  ESP.restart();
+}
+
+void handleReset() {
+  prefs.begin("cfg", false);
+  prefs.clear();
+  prefs.end();
+  WiFi.disconnect(true, true);
+  www.send(200, "text/html; charset=utf-8",
+           "<!DOCTYPE html><meta charset=utf-8><body style=\"font-family:sans-serif;background:#14161a;color:#eee;padding:24px\">"
+           "<h1>Gewist</h1><p>Het scherm start opnieuw en toont het instel-netwerk.</p></body>");
+  delay(400);
+  ESP.restart();
+}
+
+void handleNotFound() {
+  if (!portalMode) {
+    www.send(404, "text/plain", "niet gevonden");
+    return;
+  }
+  www.sendHeader("Location", "http://192.168.4.1/", true);
+  www.send(302, "text/plain", "");
+}
+
+void drawPortal(const char* apSsid) {
+  tft.fillScreen(COL_BG);
+  tft.setTextDatum(top_left);
+  tft.setFont(&fonts::Font2);
+  tft.setTextColor(COL_FG, COL_BG);
+  tft.drawString("Instellen", 8, 8);
+  tft.setFont(&fonts::Font0);
+  int y = 36;
+  tft.setTextColor(COL_MUTED, COL_BG);
+  tft.drawString("1. Verbind je telefoon met", 8, y);
+  y += 16;
+  tft.setTextColor(COL_FG, COL_BG);
+  tft.drawString(apSsid, 8, y);
+  y += 14;
+  tft.drawString("wachtwoord: makerpulse", 8, y);
+  y += 22;
+  tft.setTextColor(COL_MUTED, COL_BG);
+  tft.drawString("2. Open in de browser", 8, y);
+  y += 16;
+  tft.setTextColor(COL_FG, COL_BG);
+  tft.drawString("http://192.168.4.1", 8, y);
+  y += 22;
+  tft.setTextColor(COL_MUTED, COL_BG);
+  tft.drawString("Later wijzigen: ip/setup", 8, y);
+}
+
+bool touchPressed() {
+  uint16_t x = 0;
+  uint16_t y = 0;
+  if (!tft.getTouchRaw(&x, &y)) return false;
+  return x >= 50 && y >= 50 && x <= 4000 && y <= 4000;
+}
+
 void handleRoot() {
+  if (portalMode) {
+    sendSetupPage();
+    return;
+  }
   JsonDocument doc;
   doc["name"] = makerName;
   doc["ip"] = WiFi.localIP().toString();
@@ -1699,11 +1982,41 @@ void handleRoot() {
 }
 
 void setupHttp() {
+  static bool started = false;
+  if (started) return;
+  started = true;
   MDNS.begin("makerpulse-cyd");
   www.on("/", handleRoot);
+  www.on("/setup", sendSetupPage);
+  www.on("/scan", handleScan);
+  www.on("/save", HTTP_POST, handleSave);
+  www.on("/reset", HTTP_POST, handleReset);
   www.on("/light", handleLight);
   www.on("/light/", handleLight);
+  www.onNotFound(handleNotFound);
   www.begin();
+}
+
+void runSetupPortal() {
+  portalMode = true;
+  String mac = WiFi.macAddress();
+  mac.replace(":", "");
+  mac.toLowerCase();
+  if (mac.length() < 4) mac = "0000";
+  String ap = "MakerPulse-" + mac.substring(mac.length() - 4);
+  WiFi.mode(WIFI_AP_STA);
+  WiFi.softAP(ap.c_str(), AP_PASS);
+  dnsServer.start(53, "*", WiFi.softAPIP());
+  setupHttp();
+  blOn = true;
+  blBright = 255;
+  tft.setBrightness(255);
+  drawPortal(ap.c_str());
+  while (true) {
+    dnsServer.processNextRequest();
+    www.handleClient();
+    delay(2);
+  }
 }
 
 void serviceNet() {
@@ -1717,10 +2030,10 @@ void serviceNet() {
 }
 
 void connectWifi() {
-  drawStatus("WiFi", WIFI_SSID);
+  drawStatus("WiFi", cfgSsid);
   WiFi.mode(WIFI_STA);
   WiFi.setHostname("makerpulse-cyd");
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  WiFi.begin(cfgSsid, cfgPass);
   unsigned long start = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - start < 25000) {
     ledRgb(false, false, true);
@@ -1732,7 +2045,7 @@ void connectWifi() {
 
 void waitInterval() {
   unsigned long start = millis();
-  unsigned long interval = (unsigned long)POLL_INTERVAL_SEC * 1000UL;
+  unsigned long interval = (unsigned long)cfgPoll * 1000UL;
   while (millis() - start < interval) {
     serviceNet();
     delay(20);
@@ -1799,15 +2112,12 @@ void setup() {
   tft.init();
   tft.setRotation(CYD_ROTATION);
   loadBaseline();
+  loadUserConfig();
   if (autoBacklight()) noteActivity();
   applyBacklight(false);
   drawStatus("MakerPulse", "CYD start...");
 
-  if (MAKERWORLD_UID == 0 || WIFI_SSID[0] == 0 || strcmp(WIFI_SSID, "JOUW_WIFI_NAAM") == 0 ||
-      strcmp(WIFI_PASSWORD, "JOUW_WIFI_WACHTWOORD") == 0) {
-    drawStatus("Vul config.h in", "WiFi + MakerWorld-ID");
-    return;
-  }
+  if (!configUsable()) runSetupPortal();
 
   if (hasBaseline) {
     current = lastSent;
@@ -1819,20 +2129,30 @@ void setup() {
   if (WiFi.status() != WL_CONNECTED) {
     strncpy(lastError, "WiFi mislukt", sizeof(lastError) - 1);
     lastOk = false;
-    drawDashboard();
+    drawStatus("WiFi mislukt", "Tik het scherm");
     return;
   }
 
   configTzTime("CET-1CEST,M3.5.0,M10.5.0/3", "pool.ntp.org", "time.cloudflare.com");
   setupHttp();
   setupMqtt();
-  drawStatus("MakerWorld", WiFi.localIP().toString().c_str());
-  delay(800);
+  tft.fillScreen(COL_BG);
+  tft.setTextDatum(middle_center);
+  tft.setFont(&fonts::Font2);
+  tft.setTextColor(COL_FG, COL_BG);
+  tft.drawString("Verbonden", tft.width() / 2, tft.height() / 2 - 28);
+  tft.setFont(&fonts::Font0);
+  tft.setTextColor(COL_MUTED, COL_BG);
+  String ip = WiFi.localIP().toString();
+  tft.drawString(ip, tft.width() / 2, tft.height() / 2);
+  tft.drawString(ip + "/setup", tft.width() / 2, tft.height() / 2 + 16);
+  delay(1200);
   tick();
 }
 
 void loop() {
   if (WiFi.status() != WL_CONNECTED) {
+    if (touchPressed()) runSetupPortal();
     connectWifi();
     if (WiFi.status() == WL_CONNECTED) {
       configTzTime("CET-1CEST,M3.5.0,M10.5.0/3", "pool.ntp.org", "time.cloudflare.com");
@@ -1840,10 +2160,10 @@ void loop() {
       setupMqtt();
       tick();
     } else {
-      for (int i = 0; i < 20; i++) {
-        serviceTouch();
-        serviceBacklight();
-        delay(200);
+      drawStatus("WiFi mislukt", "Tik het scherm");
+      for (int i = 0; i < 30; i++) {
+        if (touchPressed()) runSetupPortal();
+        delay(100);
       }
     }
     return;

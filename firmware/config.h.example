@@ -1,6 +1,8 @@
 #pragma once
 // MakerPulse — settings. Copy this file to config.h and fill it in.
-// Then in Arduino IDE: Sketch → Upload. Keep mp_types.h next to this file.
+// Or leave the placeholders: flash the sketch and follow the screen.
+// The CYD then opens Wi-Fi MakerPulse-.... password makerpulse.
+// Browse to http://192.168.4.1 . Later, open http://<ip>/setup .
 //
 // MAKERWORLD_UID is the numeric account id (~10 digits). Not @handle, not a model id.
 // Fastest: sign in on makerworld.com, F12 → Console, paste:

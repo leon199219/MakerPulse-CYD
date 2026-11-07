@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026.11.07b
+
+### Added
+
+- Flash the sketch on its own. With no Wi-Fi in `config.h`, the CYD opens an access point. The screen shows the network name, the password `makerpulse`, and `http://192.168.4.1`.
+- That page sets Wi-Fi, MakerWorld UID, Telegram, MQTT, the check interval and the backlight mode. Saving restarts the display.
+- Later changes: open `http://<ip>/setup` (the IP is on the screen). If Wi-Fi fails, tap the screen to open the setup network again.
+
 ## 2026.11.07a
 
 ### Added
