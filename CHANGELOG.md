@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026.11.07j
+
+### Fixed
+
+- The name on the screen is the MakerWorld username (handle), not the profile display name.
+- A username is only saved once the closing quote is in, so it is no longer cut off.
+
+### Removed
+
+- The “beeld naar rechts / naar beneden” fields. The picture lines up without them.
+- USB left and USB right stay as the two landscape choices.
+
 ## 2026.11.07i
 
 ### Fixed

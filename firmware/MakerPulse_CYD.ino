@@ -1,5 +1,5 @@
-// MakerPulse CYD 2026.11.07i
-#define MAKERPULSE_FW "2026.11.07i"
+// MakerPulse CYD 2026.11.07j
+#define MAKERPULSE_FW "2026.11.07j"
 /*
  * ========== WHAT DO YOU NEED TO CHANGE? ==========
  *
@@ -261,8 +261,6 @@ int cfgTgEvery = TELEGRAM_INTERVAL_SEC;
 int cfgBlMode = BACKLIGHT_MODE;
 int cfgRot = CYD_ROTATION;
 bool cfgMirror = false;
-int cfgNudgeX = 0;
-int cfgNudgeY = 0;
 uint16_t cfgMqttPort = MQTT_PORT;
 uint8_t cfgNotify = (NOTIFY_DOWNLOADS ? 1 : 0) | (NOTIFY_LIKES ? 2 : 0) | (NOTIFY_PRINTS ? 4 : 0) |
                     (NOTIFY_BOOSTS ? 8 : 0) | (NOTIFY_COLLECTIONS ? 16 : 0) | (NOTIFY_COMMENTS ? 32 : 0) |
@@ -1196,9 +1194,22 @@ bool fetchStats() {
       return false;
     }
 
-    const char* name = doc["name"] | makerName;
-    strncpy(makerName, name, sizeof(makerName) - 1);
-    makerName[sizeof(makerName) - 1] = 0;
+    const char* display = doc["name"] | "";
+    const char* handle = doc["handle"] | "";
+    if (handle[0] == '@') handle++;
+    bool custom = !cfgAutoName && makerName[0] && strcmp(makerName, "Maker") != 0 &&
+                  (display[0] == 0 || strcmp(makerName, display) != 0) &&
+                  (handle[0] == 0 || strcmp(makerName, handle) != 0);
+    bool prefix = handle[0] && makerName[0] && strncmp(makerName, handle, strlen(makerName)) == 0 &&
+                  strcmp(makerName, handle) != 0;
+    if ((!custom || prefix) && handle[0]) {
+      strncpy(makerName, handle, sizeof(makerName) - 1);
+      makerName[sizeof(makerName) - 1] = 0;
+      cfgAutoName = true;
+    } else if ((!custom || prefix) && display[0]) {
+      strncpy(makerName, display, sizeof(makerName) - 1);
+      makerName[sizeof(makerName) - 1] = 0;
+    }
 
     // Profile downloadCount includes other activity. The screen shows
     // downloads of your published models only.
@@ -1742,15 +1753,11 @@ void loadUserConfig() {
   else cfgRot = CYD_ROTATION & 3;
   if (prefs.isKey("mir")) cfgMirror = prefs.getBool("mir", false);
   else cfgMirror = false;
-  if (prefs.isKey("ox")) cfgNudgeX = prefs.getInt("ox", 0);
-  if (prefs.isKey("oy")) cfgNudgeY = prefs.getInt("oy", 0);
   bool fresh = prefs.getString("fw", "") != "07i";
   prefs.end();
   if (fresh) {
     cfgRot = 1;
     cfgMirror = false;
-    cfgNudgeX = 0;
-    cfgNudgeY = 0;
     prefs.begin("cfg", false);
     prefs.putString("fw", "07i");
     prefs.putInt("rot", cfgRot);
@@ -1761,10 +1768,10 @@ void loadUserConfig() {
   }
 }
 
-int layoutW() { return tft.width() - (cfgNudgeX > 0 ? cfgNudgeX : 0); }
-int layoutH() { return tft.height() - (cfgNudgeY > 0 ? cfgNudgeY : 0); }
-int vx(int x) { return x + cfgNudgeX; }
-int vy(int y) { return y + cfgNudgeY; }
+int layoutW() { return tft.width(); }
+int layoutH() { return tft.height(); }
+int vx(int x) { return x; }
+int vy(int y) { return y; }
 
 void applyOrientation() {
   bool flipped = cfgRot == 3;
@@ -1838,7 +1845,7 @@ void sendSetupPage() {
   html += "\"><p><small id=nets>Netwerken zoeken…</small></p><select id=pick></select>";
   html += "<label>MakerWorld — link van een eigen model, of UID</label><input name=uid maxlength=180 placeholder=\"https://makerworld.com/…/models/…\" value=\"";
   html += cfgUid ? String(cfgUid) : "";
-  html += "\"><label>Naam op het scherm</label><input name=name maxlength=22 placeholder=\"leeg = MakerWorld-naam\" value=\"";
+  html += "\"><label>Naam op het scherm</label><input name=name maxlength=22 placeholder=\"leeg = MakerWorld-gebruikersnaam\" value=\"";
   if (makerName[0] && strcmp(makerName, "Maker") != 0) html += htmlEsc(makerName);
   html += "\"><label>Telegram-token</label><input name=token maxlength=78 value=\"";
   html += htmlEsc(cfgToken);
@@ -1858,16 +1865,11 @@ void sendSetupPage() {
   html += String("<option value=0") + (cfgBlMode != 1 ? " selected" : "") + ">MQTT / Home Assistant</option>";
   html += String("<option value=1") + (cfgBlMode == 1 ? " selected" : "") + ">Automatisch, uit na 10 min</option></select>";
   html += "<label>Stand</label><select name=rot>";
-  html += String("<option value=1") + (cfgRot != 3 ? " selected" : "") + ">Liggend</option>";
-  html += String("<option value=3") + (cfgRot == 3 ? " selected" : "") + ">Liggend, ondersteboven</option></select>";
+  html += String("<option value=1") + (cfgRot != 3 ? " selected" : "") + ">Liggend, USB links</option>";
+  html += String("<option value=3") + (cfgRot == 3 ? " selected" : "") + ">Liggend, USB rechts</option></select>";
   html += "<label class=chk><input type=checkbox name=mir";
   if (cfgMirror) html += " checked";
   html += "> Spiegelen</label>";
-  html += "<label>Beeld naar rechts</label><input name=nx type=number value=\"";
-  html += String(cfgNudgeX);
-  html += "\"><label>Beeld naar beneden</label><input name=ny type=number value=\"";
-  html += String(cfgNudgeY);
-  html += "\"><p><small>Pixels, alleen als het beeld nog een stukje verschoven is. 0 is normaal. Negatief is de andere kant.</small></p>";
   html += "<label>MQTT-broker</label><input name=mqhost maxlength=62 placeholder=\"leeg = uit\" value=\"";
   html += htmlEsc(cfgMqttHost);
   html += "\"><label>MQTT-poort</label><input name=mqport inputmode=numeric value=\"";
@@ -2003,10 +2005,13 @@ bool pullJsonString(const char* win, const char* key, char* out, size_t n) {
   q = strchr(q, '"');
   if (!q) return false;
   q++;
-  size_t k = 0;
-  while (*q && *q != '"' && *q != '\\' && k + 1 < n) out[k++] = *q++;
-  out[k] = 0;
-  return k > 0;
+  const char* end = strchr(q, '"');
+  if (!end || end == q) return false;
+  size_t len = (size_t)(end - q);
+  if (len >= n) len = n - 1;
+  memcpy(out, q, len);
+  out[len] = 0;
+  return true;
 }
 
 bool readCreator(const String& url, const char* anchor, uint32_t& uid, char* handle, size_t handleN) {
@@ -2093,7 +2098,7 @@ bool lookupProfileHandle(uint32_t uid, char* handle, size_t handleN) {
 }
 
 bool nameNeedsFetch() {
-  return cfgAutoName || !makerName[0] || strcmp(makerName, "Maker") == 0;
+  return !makerName[0] || strcmp(makerName, "Maker") == 0;
 }
 
 void saveIdentity() {
@@ -2101,7 +2106,7 @@ void saveIdentity() {
   prefs.putULong("uid", cfgUid);
   prefs.putString("name", makerName);
   prefs.putString("qry", "");
-  prefs.putBool("auton", false);
+  prefs.putBool("auton", cfgAutoName);
   prefs.end();
   cfgQuery[0] = 0;
   cfgAutoName = false;
@@ -2195,14 +2200,7 @@ void handleSave() {
   if (rot != 3) rot = 1;
   prefs.putInt("rot", rot);
   prefs.putBool("mir", www.hasArg("mir"));
-  int nx = www.arg("nx").toInt();
-  int ny = www.arg("ny").toInt();
-  if (nx < -80) nx = -80;
-  if (nx > 80) nx = 80;
-  if (ny < -80) ny = -80;
-  if (ny > 80) ny = 80;
-  prefs.putInt("ox", nx);
-  prefs.putInt("oy", ny);
+  prefs.putBool("cust", !autoName);
   prefs.putUInt("mqport", (uint32_t)port);
   prefs.putUChar("nfy", nfy);
   prefs.end();
