@@ -1,5 +1,5 @@
-// MakerPulse CYD 2026.11.07c
-#define MAKERPULSE_FW "2026.11.07c"
+// MakerPulse CYD 2026.11.07d
+#define MAKERPULSE_FW "2026.11.07d"
 /*
  * ========== WHAT DO YOU NEED TO CHANGE? ==========
  *
@@ -1742,10 +1742,25 @@ String htmlEsc(const String& in) {
   o.reserve(in.length() + 4);
   for (unsigned i = 0; i < in.length(); i++) {
     char c = in[i];
-    if (c == '&') o += "&";
-    else if (c == '<') o += "<";
-    else if (c == '"') o += """;
-    else o += c;
+    if (c == '&') {
+      o += '&';
+      o += 'a';
+      o += 'm';
+      o += 'p';
+      o += ';';
+    } else if (c == '<') {
+      o += '&';
+      o += 'l';
+      o += 't';
+      o += ';';
+    } else if (c == '"') {
+      o += '&';
+      o += 'q';
+      o += 'u';
+      o += 'o';
+      o += 't';
+      o += ';';
+    } else o += c;
   }
   return o;
 }

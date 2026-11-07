@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026.11.07d
+
+### Fixed
+
+- The setup page no longer fails to compile. The quote in `htmlEsc` was an invalid string.
+
 ## 2026.11.07c
 
 ### Added
