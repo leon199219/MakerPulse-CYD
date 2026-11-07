@@ -8,7 +8,7 @@ Downloads, likes, prints, boosts, collections and comments — when a value chan
 
 After flashing, the CYD talks to MakerWorld on its own. You can close the browser.
 
-**Firmware:** [`2026.11.07h`](firmware/MakerPulse_CYD.ino) · **License:** [MIT](LICENSE)
+**Firmware:** [`2026.11.07i`](firmware/MakerPulse_CYD.ino) · **License:** [MIT](LICENSE)
 
 ## What it does
 

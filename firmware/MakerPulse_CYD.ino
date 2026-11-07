@@ -1,5 +1,5 @@
-// MakerPulse CYD 2026.11.07h
-#define MAKERPULSE_FW "2026.11.07h"
+// MakerPulse CYD 2026.11.07i
+#define MAKERPULSE_FW "2026.11.07i"
 /*
  * ========== WHAT DO YOU NEED TO CHANGE? ==========
  *
@@ -176,13 +176,13 @@ class CydDisplay : public lgfx::LGFX_Device {
       cfg.pin_cs = 15;
       cfg.pin_rst = -1;
       cfg.pin_busy = -1;
-      cfg.memory_width = 240;
-      cfg.memory_height = 320;
-      cfg.panel_width = 240;
-      cfg.panel_height = 320;
+      cfg.memory_width = 320;
+      cfg.memory_height = 240;
+      cfg.panel_width = 320;
+      cfg.panel_height = 240;
       cfg.offset_x = 0;
       cfg.offset_y = 0;
-      cfg.offset_rotation = CYD_OFFSET_ROTATION;
+      cfg.offset_rotation = 0;
       cfg.dummy_read_pixel = 8;
       cfg.dummy_read_bits = 1;
       cfg.readable = false;
@@ -1744,7 +1744,21 @@ void loadUserConfig() {
   else cfgMirror = false;
   if (prefs.isKey("ox")) cfgNudgeX = prefs.getInt("ox", 0);
   if (prefs.isKey("oy")) cfgNudgeY = prefs.getInt("oy", 0);
+  bool fresh = prefs.getString("fw", "") != "07i";
   prefs.end();
+  if (fresh) {
+    cfgRot = 1;
+    cfgMirror = false;
+    cfgNudgeX = 0;
+    cfgNudgeY = 0;
+    prefs.begin("cfg", false);
+    prefs.putString("fw", "07i");
+    prefs.putInt("rot", cfgRot);
+    prefs.putBool("mir", false);
+    prefs.putInt("ox", 0);
+    prefs.putInt("oy", 0);
+    prefs.end();
+  }
 }
 
 int layoutW() { return tft.width() - (cfgNudgeX > 0 ? cfgNudgeX : 0); }
@@ -1753,16 +1767,10 @@ int vx(int x) { return x + cfgNudgeX; }
 int vy(int y) { return y + cfgNudgeY; }
 
 void applyOrientation() {
-  auto paint = [](uint8_t rot, bool mirror) {
-    uint8_t r = (uint8_t)(rot & 3);
-    if (mirror) r |= 4;
-    tft.setRotation(r);
-  };
-  paint(cfgRot, cfgMirror);
-  if (tft.width() < tft.height()) {
-    cfgRot = (cfgRot + 1) & 3;
-    paint(cfgRot, cfgMirror);
-  }
+  bool flipped = cfgRot == 3;
+  uint8_t r = flipped ? 2 : 6;
+  if (cfgMirror) r = flipped ? 4 : 0;
+  tft.setRotation(r);
 }
 
 bool configUsable() {
@@ -1850,8 +1858,8 @@ void sendSetupPage() {
   html += String("<option value=0") + (cfgBlMode != 1 ? " selected" : "") + ">MQTT / Home Assistant</option>";
   html += String("<option value=1") + (cfgBlMode == 1 ? " selected" : "") + ">Automatisch, uit na 10 min</option></select>";
   html += "<label>Stand</label><select name=rot>";
-  html += String("<option value=1") + (cfgRot != 3 ? " selected" : "") + ">Liggend, USB links</option>";
-  html += String("<option value=3") + (cfgRot == 3 ? " selected" : "") + ">Liggend, USB rechts</option></select>";
+  html += String("<option value=1") + (cfgRot != 3 ? " selected" : "") + ">Liggend</option>";
+  html += String("<option value=3") + (cfgRot == 3 ? " selected" : "") + ">Liggend, ondersteboven</option></select>";
   html += "<label class=chk><input type=checkbox name=mir";
   if (cfgMirror) html += " checked";
   html += "> Spiegelen</label>";

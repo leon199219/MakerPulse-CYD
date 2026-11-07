@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026.11.07i
+
+### Fixed
+
+- Landscape is now drawn along the long side of the glass. The previous landscape mode was still 90 degrees off.
+- Choices are Liggend and Liggend, ondersteboven. Spiegelen flips the picture without turning it upright.
+
 ## 2026.11.07h
 
 ### Fixed
