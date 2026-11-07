@@ -1,5 +1,5 @@
-// MakerPulse CYD 2026.11.07d
-#define MAKERPULSE_FW "2026.11.07d"
+// MakerPulse CYD 2026.11.07e
+#define MAKERPULSE_FW "2026.11.07e"
 /*
  * ========== WHAT DO YOU NEED TO CHANGE? ==========
  *
@@ -256,6 +256,8 @@ uint32_t cfgUid = (uint32_t)MAKERWORLD_UID;
 int cfgPoll = POLL_INTERVAL_SEC;
 int cfgTgEvery = TELEGRAM_INTERVAL_SEC;
 int cfgBlMode = BACKLIGHT_MODE;
+int cfgRot = CYD_ROTATION;
+bool cfgMirror = false;
 uint16_t cfgMqttPort = MQTT_PORT;
 uint8_t cfgNotify = (NOTIFY_DOWNLOADS ? 1 : 0) | (NOTIFY_LIKES ? 2 : 0) | (NOTIFY_PRINTS ? 4 : 0) |
                     (NOTIFY_BOOSTS ? 8 : 0) | (NOTIFY_COLLECTIONS ? 16 : 0) | (NOTIFY_COMMENTS ? 32 : 0) |
@@ -1727,7 +1729,17 @@ void loadUserConfig() {
     cfgMqttPort = (uint16_t)prefs.getUInt("mqport", cfgMqttPort);
     cfgNotify = prefs.getUChar("nfy", cfgNotify);
   }
+  if (prefs.isKey("rot")) cfgRot = prefs.getInt("rot", cfgRot) & 3;
+  else cfgRot = (CYD_ROTATION + 1) & 3;
+  if (prefs.isKey("mir")) cfgMirror = prefs.getBool("mir", false);
+  else cfgMirror = true;
   prefs.end();
+}
+
+void applyOrientation() {
+  uint8_t r = (uint8_t)(cfgRot & 3);
+  if (cfgMirror) r |= 4;
+  tft.setRotation(r);
 }
 
 bool configUsable() {
@@ -1767,16 +1779,25 @@ String htmlEsc(const String& in) {
 
 void sendSetupPage() {
   String html;
-  html.reserve(4200);
+  html.reserve(7000);
   html += "<!DOCTYPE html><html><head><meta charset=utf-8>"
           "<meta name=viewport content=\"width=device-width,initial-scale=1\">"
           "<title>MakerPulse</title><style>"
-          "body{font-family:sans-serif;background:#14161a;color:#eee;margin:0;padding:16px}"
-          "h1{font-size:1.3rem}label{display:block;margin:12px 0 4px;font-size:14px}"
-          "input,select{width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1px solid #333;background:#1c1f24;color:#fff}"
-          "button{margin-top:14px;width:100%;padding:12px;border:0;border-radius:8px;background:#e8e6df;font-weight:600}"
-          ".ghost{background:#2a2e32;color:#eee}.chk{display:flex;align-items:center;gap:8px;margin:6px 0}"
-          "small{color:#9a9b96}</style></head><body><h1>MakerPulse</h1>"
+          "body{margin:0;background:#101110;color:#f3f3f3;font-family:system-ui,Segoe UI,sans-serif}"
+          ".wrap{max-width:440px;margin:0 auto;padding:22px 16px 48px}"
+          ".top{display:flex;align-items:center;gap:12px;margin-bottom:18px}"
+          ".mark{width:10px;height:28px;border-radius:8px;background:#00ae42}"
+          "h1{margin:0;font-size:1.25rem;font-weight:650;letter-spacing:-.02em}"
+          ".sub{margin:2px 0 0;color:#8d8d8d;font-size:12px}"
+          "label{display:block;margin:14px 0 6px;font-size:13px;color:#cfcfcf}"
+          "input,select{width:100%;box-sizing:border-box;padding:12px;border-radius:10px;border:1px solid #2a2a2a;background:#181818;color:#fff}"
+          "input:focus,select:focus{outline:2px solid #00ae42;border-color:#00ae42}"
+          "button{margin-top:16px;width:100%;padding:13px;border:0;border-radius:10px;background:#00ae42;color:#fff;font-weight:650}"
+          ".ghost{background:transparent;color:#e8e8e8;border:1px solid #3a3a3a}"
+          ".chk{display:flex;align-items:center;gap:8px;margin:8px 0;color:#eee}"
+          "small{color:#8d8d8d}</style></head><body><div class=wrap>"
+          "<div class=top><div class=mark></div><div><h1>MakerPulse</h1>"
+          "<p class=sub>MakerWorld op de CYD</p></div></div>"
           "<p><small>WiFi, een modellink of UID, Telegram en MQTT. Opslaan herstart het scherm.</small></p>"
           "<form method=POST action=/save>";
   html += "<label>WiFi-naam</label><input name=ssid required maxlength=32 value=\"";
@@ -1805,6 +1826,14 @@ void sendSetupPage() {
   html += "<label>Scherm</label><select name=bl>";
   html += String("<option value=0") + (cfgBlMode != 1 ? " selected" : "") + ">MQTT / Home Assistant</option>";
   html += String("<option value=1") + (cfgBlMode == 1 ? " selected" : "") + ">Automatisch, uit na 10 min</option></select>";
+  html += "<label>Scherm draaien</label><select name=rot>";
+  html += String("<option value=0") + (cfgRot == 0 ? " selected" : "") + ">0 graden</option>";
+  html += String("<option value=1") + (cfgRot == 1 ? " selected" : "") + ">90 graden</option>";
+  html += String("<option value=2") + (cfgRot == 2 ? " selected" : "") + ">180 graden</option>";
+  html += String("<option value=3") + (cfgRot == 3 ? " selected" : "") + ">270 graden</option></select>";
+  html += "<label class=chk><input type=checkbox name=mir";
+  if (cfgMirror) html += " checked";
+  html += "> Spiegelen</label>";
   html += "<label>MQTT-broker</label><input name=mqhost maxlength=62 placeholder=\"leeg = uit\" value=\"";
   html += htmlEsc(cfgMqttHost);
   html += "\"><label>MQTT-poort</label><input name=mqport inputmode=numeric value=\"";
@@ -1827,7 +1856,7 @@ void sendSetupPage() {
   }
   html += "<button>Opslaan en herstarten</button>"
           "<button class=ghost type=submit formaction=/reset formmethod=post>Wissen en opnieuw</button>"
-          "</form><script>fetch('/scan').then(r=>r.json()).then(list=>{"
+          "</form></div><script>fetch('/scan').then(r=>r.json()).then(list=>{"
           "const p=document.getElementById('pick');const n=document.getElementById('nets');"
           "const ssid=document.querySelector('[name=ssid]');"
           "if(!list.length){n.textContent='Geen netwerken gevonden. Typ de naam hierboven.';return;}"
@@ -2045,12 +2074,17 @@ void handleSave() {
   prefs.putInt("poll", allowedPoll(www.arg("poll").toInt()));
   prefs.putInt("tge", allowedEvery(www.arg("tgevery").toInt()));
   prefs.putInt("bl", www.arg("bl") == "1" ? 1 : 0);
+  int rot = www.arg("rot").toInt();
+  if (rot < 0 || rot > 3) rot = cfgRot & 3;
+  prefs.putInt("rot", rot);
+  prefs.putBool("mir", www.hasArg("mir"));
   prefs.putUInt("mqport", (uint32_t)port);
   prefs.putUChar("nfy", nfy);
   prefs.end();
   www.send(200, "text/html; charset=utf-8",
-           "<!DOCTYPE html><meta charset=utf-8><body style=\"font-family:sans-serif;background:#14161a;color:#eee;padding:24px\">"
-           "<h1>Opgeslagen</h1><p>Het scherm herstart en maakt verbinding.</p></body>");
+           "<!DOCTYPE html><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\">"
+           "<body style=\"margin:0;background:#101110;color:#f3f3f3;font-family:system-ui,sans-serif;padding:28px\">"
+           "<h1 style=\"font-weight:650\">Opgeslagen</h1><p>Het scherm herstart en maakt verbinding.</p></body>");
   delay(400);
   ESP.restart();
 }
@@ -2061,8 +2095,9 @@ void handleReset() {
   prefs.end();
   WiFi.disconnect(true, true);
   www.send(200, "text/html; charset=utf-8",
-           "<!DOCTYPE html><meta charset=utf-8><body style=\"font-family:sans-serif;background:#14161a;color:#eee;padding:24px\">"
-           "<h1>Gewist</h1><p>Het scherm start opnieuw en toont het instel-netwerk.</p></body>");
+           "<!DOCTYPE html><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\">"
+           "<body style=\"margin:0;background:#101110;color:#f3f3f3;font-family:system-ui,sans-serif;padding:28px\">"
+           "<h1 style=\"font-weight:650\">Gewist</h1><p>Het scherm start opnieuw en toont het instel-netwerk.</p></body>");
   delay(400);
   ESP.restart();
 }
@@ -2259,9 +2294,9 @@ void setup() {
   ledOff();
 
   tft.init();
-  tft.setRotation(CYD_ROTATION);
   loadBaseline();
   loadUserConfig();
+  applyOrientation();
   if (autoBacklight()) noteActivity();
   applyBacklight(false);
   drawStatus("MakerPulse", "CYD start...");

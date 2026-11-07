@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026.11.07e
+
+### Added
+
+- The setup page can rotate the screen (0, 90, 180, 270) and mirror it. The choice is kept on the device.
+- Existing displays that never saved a rotation turn 90 degrees and mirror once, so a sideways mirrored panel comes upright.
+- The page at the device IP uses a dark layout with a green accent, in the style of Bambu Lab.
+
 ## 2026.11.07d
 
 ### Fixed
