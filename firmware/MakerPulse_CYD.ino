@@ -1,5 +1,5 @@
-// MakerPulse CYD 2026.11.07j
-#define MAKERPULSE_FW "2026.11.07j"
+// MakerPulse CYD 2026.11.07k
+#define MAKERPULSE_FW "2026.11.07k"
 /*
  * ========== WHAT DO YOU NEED TO CHANGE? ==========
  *
@@ -288,6 +288,7 @@ char topicState[48] = "";
 char topicAvail[48] = "";
 char topicStats[48] = "";
 char topicDisc[64] = "";
+char mqttMsg[24] = "";
 
 void serviceNet();
 
@@ -486,7 +487,11 @@ void drawDashboard() {
   }
   tft.setTextDatum(middle_right);
   tft.setTextColor(COL_MUTED, COL_BG);
-  if (WiFi.status() == WL_CONNECTED) {
+  if (mqttEnabled()) {
+    bool up = mqtt.connected();
+    tft.setTextColor(up ? COL_UP : COL_ERR, COL_BG);
+    tft.drawString(mqttMsg[0] ? mqttMsg : (up ? "MQTT" : "MQTT ..."), vx(W - 8), vy(footY + footH / 2));
+  } else if (WiFi.status() == WL_CONNECTED) {
     tft.drawString(WiFi.localIP().toString(), vx(W - 8), vy(footY + footH / 2));
   } else {
     bool tg = cfgToken[0] && cfgChat[0];
@@ -1511,7 +1516,8 @@ void publishLightState() {
 }
 
 void publishStats() {
-  if (!mqtt.connected() || !lastOk) return;
+  if (!mqtt.connected()) return;
+  if (!lastOk && !hasBaseline) return;
   JsonDocument doc;
   doc["downloads"] = current.downloads;
   doc["likes"] = current.likes;
@@ -1670,16 +1676,40 @@ void ensureMqtt() {
   } else {
     ok = mqtt.connect(mqttClientId, topicAvail, 1, true, "offline");
   }
-  if (!ok) return;
+  if (!ok) {
+    int st = mqtt.state();
+    if (st == 4 || st == 5) strncpy(mqttMsg, "MQTT login fout", sizeof(mqttMsg) - 1);
+    else if (st == -2) strncpy(mqttMsg, "MQTT geweigerd", sizeof(mqttMsg) - 1);
+    else if (st == -4) strncpy(mqttMsg, "MQTT geen broker", sizeof(mqttMsg) - 1);
+    else strncpy(mqttMsg, "MQTT geen verbinding", sizeof(mqttMsg) - 1);
+    mqttMsg[sizeof(mqttMsg) - 1] = 0;
+    return;
+  }
+  strncpy(mqttMsg, "MQTT", sizeof(mqttMsg) - 1);
   mqtt.publish(topicAvail, "online", true);
   if (!autoBacklight()) mqtt.subscribe(topicCmd);
   publishDiscovery();
   if (!autoBacklight()) publishLightState();
-  if (lastOk) publishStats();
+  if (lastOk || hasBaseline) publishStats();
 }
 
 void setupMqtt() {
   if (!mqttEnabled()) return;
+  String host = cfgMqttHost;
+  host.trim();
+  if (host.startsWith("mqtt://")) host.remove(0, 7);
+  if (host.startsWith("mqtts://")) host.remove(0, 8);
+  int slash = host.indexOf('/');
+  if (slash >= 0) host.remove(slash);
+  int colon = host.lastIndexOf(':');
+  if (colon > 0 && host.indexOf(':') == colon) {
+    int p = host.substring(colon + 1).toInt();
+    if (p > 0 && p < 65536) cfgMqttPort = (uint16_t)p;
+    host.remove(colon);
+  }
+  host.toCharArray(cfgMqttHost, sizeof(cfgMqttHost));
+  if (!cfgMqttPort) cfgMqttPort = 1883;
+
   String mac = WiFi.macAddress();
   mac.replace(":", "");
   mac.toLowerCase();
@@ -1689,9 +1719,21 @@ void setupMqtt() {
   snprintf(topicAvail, sizeof(topicAvail), "makerpulse/%s/status", mac.c_str());
   snprintf(topicStats, sizeof(topicStats), "makerpulse/%s/stats", mac.c_str());
   snprintf(topicDisc, sizeof(topicDisc), "homeassistant/light/%s/config", mqttClientId);
-  mqtt.setServer(cfgMqttHost, cfgMqttPort);
+
+  IPAddress ip;
+  bool useIp = ip.fromString(cfgMqttHost);
+  if (!useIp && host.endsWith(".local")) {
+    String bare = host.substring(0, host.length() - 6);
+    ip = MDNS.queryHost(bare.c_str());
+    useIp = (uint32_t)ip != 0;
+  }
+  if (useIp) mqtt.setServer(ip, cfgMqttPort);
+  else mqtt.setServer(cfgMqttHost, cfgMqttPort);
   mqtt.setCallback(mqttCallback);
-  mqtt.setBufferSize(1536);
+  mqtt.setKeepAlive(90);
+  mqtt.setSocketTimeout(4);
+  mqtt.setBufferSize(2048);
+  strncpy(mqttMsg, "MQTT ...", sizeof(mqttMsg) - 1);
 }
 
 void sendCors() {
@@ -2189,7 +2231,9 @@ void handleSave() {
   prefs.putString("qry", model ? uidTxt : "");
   prefs.putString("token", www.arg("token"));
   prefs.putString("chat", www.arg("chat"));
-  prefs.putString("mqh", www.arg("mqhost"));
+  String host = www.arg("mqhost");
+  host.trim();
+  prefs.putString("mqh", host);
   prefs.putString("mqu", www.arg("mquser"));
   prefs.putString("mqp", www.arg("mqpass"));
   prefs.putULong("uid", uid);

@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026.11.07k
+
+### Fixed
+
+- MQTT stays connected while MakerWorld is checked, and stats are still sent after a later failed check.
+- A host like `mqtt://` or `name.local` is accepted. Port 0 becomes 1883.
+- The bottom right of the screen shows MQTT, or why the broker refused the connection.
+
 ## 2026.11.07j
 
 ### Fixed
