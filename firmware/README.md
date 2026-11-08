@@ -4,6 +4,24 @@ This folder is the Arduino sketch. You can flash it without editing anything: th
 
 The sketch shows your MakerWorld stats on the 2.8" screen (downloads, likes, prints, boosts, collections, comments) and sends a Telegram message on changes, including the model title. **Downloads** is the total of your published models (`myDesignDownloadCount`), not the broader profile download counter. **Comments** is the sum of the Reviews & Ratings count on each model page, not the lower number from the model list. The module keeps checking on its own — you can close the browser.
 
+## Built-in web server
+
+After you flash the sketch, the CYD serves a setup page. Use it instead of editing `config.h`, and use it again whenever something should change. A setup saved on the device overrides `config.h`.
+
+**First start** (no Wi-Fi saved yet):
+
+1. The screen shows a network `MakerPulse-….`, password `makerpulse`, and `http://192.168.4.1`.
+2. Connect your phone to that network and open `http://192.168.4.1`.
+3. Enter your home Wi-Fi, a link to one of your own models (the account id is read from that model) or a numeric UID, and optional Telegram and MQTT. Save. The display restarts on your home network.
+
+**Change it later**, without flashing:
+
+1. Read the IP address on the screen.
+2. On a phone or computer on the same Wi-Fi, open `http://<ip>/setup` (for example `http://192.168.1.50/setup`).
+3. Change Wi-Fi, MakerWorld, Telegram, MQTT, the check interval, backlight or rotation, then save. The display restarts.
+
+If Wi-Fi fails, tap the screen. The `MakerPulse-….` network and `http://192.168.4.1` come back.
+
 ## What you need
 
 - ESP32-2432S028 (Cheap Yellow Display, 240×320)
@@ -169,11 +187,11 @@ The backlight is one choice:
 | `BACKLIGHT_MODE` | What the screen does |
 | --- | --- |
 | `0` | MQTT / Home Assistant. The light stays as HA or HTTP sets it. It does not turn off by itself. |
-| `1` | Automatic. Off after 10 minutes (`BACKLIGHT_IDLE_SEC`). A changed statistic or a tap on the screen turns it on for another 10 minutes. The HA light is not used. Sensors still publish if `MQTT_HOST` is set. |
+| `1` | Automatic. Off after 10 minutes (`BACKLIGHT_IDLE_SEC`). A changed statistic or a tap turns it on for another 10 minutes. Home Assistant can still switch the light. |
 
 MQTT for the numbers is optional. Leave `MQTT_HOST` empty and the CYD still shows stats and can still send Telegram. Nothing is published.
 
-Set these in `config.h`, then flash again with the Arduino IDE:
+Set these on `http://<ip>/setup`, or in `config.h` before you flash:
 
 | Define | Meaning |
 | --- | --- |
@@ -224,7 +242,7 @@ Status: `http://makerpulse-cyd.local/light` or `http://IP/light`. The IP is at t
 
 | Symptom | Check |
 | --- | --- |
-| Screen says fill in `config.h` | File is named `config.h` (not `.example`). Wi-Fi placeholders and `MAKERWORLD_UID 0` replaced. |
+| Screen says fill in `config.h` | Open the setup page instead: `http://192.168.4.1` on first boot, or `http://<ip>/setup` later. |
 | `bootloader.bin was unexpected at this time` | Move the folder to `C:\MakerPulse_CYD\`. No spaces, no parentheses, no OneDrive/Downloads. |
 | Wi-Fi failed | SSID/password in `config.h`, 2.4 GHz (not 5 GHz) |
 | MakerWorld offline | Numeric `MAKERWORLD_UID` (console snippet / avatar URL), internet |
