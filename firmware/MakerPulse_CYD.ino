@@ -1,5 +1,5 @@
-// MakerPulse CYD 2026.11.07l
-#define MAKERPULSE_FW "2026.11.07l"
+// MakerPulse CYD 2026.11.07m
+#define MAKERPULSE_FW "2026.11.07m"
 /*
  * ========== WHAT DO YOU NEED TO CHANGE? ==========
  *
@@ -254,6 +254,7 @@ char cfgMqttHost[64] = MQTT_HOST;
 char cfgMqttUser[32] = MQTT_USER;
 char cfgMqttPass[64] = MQTT_PASS;
 uint32_t cfgUid = (uint32_t)MAKERWORLD_UID;
+uint32_t cfgModel = 0;
 char cfgQuery[160] = "";
 bool cfgAutoName = false;
 int cfgPoll = POLL_INTERVAL_SEC;
@@ -1219,9 +1220,37 @@ bool fetchStats() {
                  String((unsigned long)cfgUid);
     String body;
     if (!httpsGet(url, body) || !jsonHasProfileShape(body)) {
-      noteMwFail();
-      if (lastHttpCode == 200) strncpy(lastError, "MW antwoord kapot", sizeof(lastError) - 1);
-      return false;
+      if (lastHttpCode == 404) {
+        uint32_t model = cfgModel;
+        if (!model && cfgQuery[0]) {
+          uint32_t ignored = 0;
+          String err;
+          parseMakerField(cfgQuery, ignored, model, err);
+        }
+        if (!model) model = cfgUid;
+        uint32_t previous = cfgUid;
+        if (model >= 1000 && resolveFromModel(model) && cfgUid >= 1000 && cfgUid != previous) {
+          url = String("https://api.bambulab.com/v1/design-user-service/user/profile/") + String((unsigned long)cfgUid);
+          if (!httpsGet(url, body) || !jsonHasProfileShape(body)) {
+            noteMwFail();
+            if (lastHttpCode == 404) strncpy(lastError, "Plak opnieuw een modellink", sizeof(lastError) - 1);
+            return false;
+          }
+          saveIdentity();
+        } else if (model >= 1000 && cfgUid == previous) {
+          strncpy(lastError, "Plak opnieuw een modellink", sizeof(lastError) - 1);
+          lastOk = false;
+          return false;
+        } else {
+          noteMwFail();
+          return false;
+        }
+      } else {
+        noteMwFail();
+        if (lastHttpCode == 200) strncpy(lastError, "MW antwoord kapot", sizeof(lastError) - 1);
+        else if (lastHttpCode == 404) strncpy(lastError, "Plak opnieuw een modellink", sizeof(lastError) - 1);
+        return false;
+      }
     }
 
     JsonDocument doc;
@@ -1557,7 +1586,7 @@ void publishStats() {
 void applyBacklight(bool pub) {
   tft.setBrightness(blOn ? blBright : 0);
   saveBacklight();
-  if (pub && !autoBacklight()) publishLightState();
+  if (pub) publishLightState();
 }
 
 void noteActivity() {
@@ -1595,7 +1624,6 @@ bool statsMoved() {
 }
 
 void parseLightJson(const String& body) {
-  if (autoBacklight()) return;
   if (!body.length()) return;
   JsonDocument doc;
   if (deserializeJson(doc, body)) return;
@@ -1618,6 +1646,7 @@ void parseLightJson(const String& body) {
     }
   }
   applyBacklight(true);
+  if (blOn) noteActivity();
 }
 
 void mqttCallback(char* topic, byte* payload, unsigned int len) {
@@ -1648,11 +1677,7 @@ void publishDiscovery() {
   dev["manufacturer"] = "MakerPulse";
   String payload;
   serializeJson(d, payload);
-  if (autoBacklight()) {
-    mqtt.publish(topicDisc, "", true);
-  } else {
-    mqtt.publish(topicDisc, payload.c_str(), true);
-  }
+  mqtt.publish(topicDisc, payload.c_str(), true);
 
   static const char* keys[] = {"downloads", "likes", "prints", "boosts", "collections", "comments", "followers"};
   static const char* names[] = {"Downloads", "Likes", "Prints", "Boosts", "Collecties", "Comments", "Volgers"};
@@ -1715,9 +1740,9 @@ void ensureMqtt(bool force) {
   }
   strncpy(mqttMsg, "MQTT", sizeof(mqttMsg) - 1);
   mqtt.publish(topicAvail, "online", true);
-  if (!autoBacklight()) mqtt.subscribe(topicCmd);
+  mqtt.subscribe(topicCmd);
   publishDiscovery();
-  if (!autoBacklight()) publishLightState();
+  publishLightState();
   if (lastOk || hasBaseline) publishStats();
 }
 
@@ -1760,7 +1785,7 @@ void setupMqtt() {
   mqtt.setCallback(mqttCallback);
   mqtt.setKeepAlive(90);
   mqtt.setSocketTimeout(4);
-  mqtt.setBufferSize(1024);
+  mqtt.setBufferSize(1536);
   strncpy(mqttMsg, "MQTT ...", sizeof(mqttMsg) - 1);
 }
 
@@ -1809,6 +1834,7 @@ void loadUserConfig() {
     copyField(cfgMqttUser, sizeof(cfgMqttUser), prefs.getString("mqu", cfgMqttUser));
     copyField(cfgMqttPass, sizeof(cfgMqttPass), prefs.getString("mqp", cfgMqttPass));
     cfgUid = prefs.getULong("uid", cfgUid);
+    cfgModel = prefs.getULong("mdl", cfgModel);
     cfgPoll = prefs.getInt("poll", cfgPoll);
     cfgTgEvery = prefs.getInt("tge", cfgTgEvery);
     cfgBlMode = prefs.getInt("bl", cfgBlMode);
@@ -2087,9 +2113,10 @@ bool pullJsonString(const char* win, const char* key, char* out, size_t n) {
 bool readCreator(const String& url, const char* anchor, uint32_t& uid, char* handle, size_t handleN) {
   WiFiClientSecure client;
   client.setInsecure();
+  client.setHandshakeTimeout(15);
   HTTPClient http;
   http.useHTTP10(true);
-  http.setTimeout(12000);
+  http.setTimeout(15000);
   if (!http.begin(client, url)) return false;
   http.addHeader("Accept", "application/json");
   http.addHeader("User-Agent", MW_UA);
@@ -2099,7 +2126,7 @@ bool readCreator(const String& url, const char* anchor, uint32_t& uid, char* han
     return false;
   }
   WiFiClient* stream = http.getStreamPtr();
-  char win[180];
+  char win[320];
   int n = 0;
   win[0] = 0;
   bool seen = anchor == nullptr;
@@ -2107,7 +2134,7 @@ bool readCreator(const String& url, const char* anchor, uint32_t& uid, char* han
   bool gotUid = false;
   bool gotHandle = handle == nullptr;
   unsigned long start = millis();
-  while (millis() - start < 12000) {
+  while (millis() - start < 15000) {
     while (stream->available()) {
       char c = (char)stream->read();
       if (n < (int)sizeof(win) - 1) win[n++] = c;
@@ -2117,11 +2144,15 @@ bool readCreator(const String& url, const char* anchor, uint32_t& uid, char* han
         n = sizeof(win) - 1;
       }
       win[n] = 0;
-      if (!seen && anchor && strstr(win, anchor)) {
-        seen = true;
-        n = 0;
-        win[0] = 0;
-        continue;
+      if (!seen && anchor) {
+        char* hit = strstr(win, anchor);
+        if (hit) {
+          char* tail = hit + strlen(anchor);
+          int keep = (int)strlen(tail);
+          memmove(win, tail, keep + 1);
+          n = keep;
+          seen = true;
+        }
       }
       if (!seen) continue;
       after++;
@@ -2129,7 +2160,7 @@ bool readCreator(const String& url, const char* anchor, uint32_t& uid, char* han
         char* u = strstr(win, "\"uid\"");
         if (u) {
           char* colon = strchr(u, ':');
-          if (colon) {
+          if (colon && (int)(colon - win) < n - 1) {
             uint32_t v = strtoul(colon + 1, nullptr, 10);
             if (v >= 1000) {
               uid = v;
@@ -2145,7 +2176,7 @@ bool readCreator(const String& url, const char* anchor, uint32_t& uid, char* han
         http.end();
         return true;
       }
-      if (after > 1200) break;
+      if (anchor && after > 4000) break;
     }
     if (!http.connected()) break;
     delay(1);
@@ -2158,7 +2189,7 @@ bool lookupCreator(uint32_t modelId, uint32_t& uid, char* handle, size_t handleN
   uid = 0;
   if (handle && handleN) handle[0] = 0;
   String url = String("https://api.bambulab.com/v1/design-service/design/") + String(modelId);
-  return readCreator(url, "designCreator", uid, handle, handleN);
+  return readCreator(url, "designCreator\"", uid, handle, handleN);
 }
 
 bool lookupProfileHandle(uint32_t uid, char* handle, size_t handleN) {
@@ -2174,49 +2205,50 @@ bool nameNeedsFetch() {
 void saveIdentity() {
   prefs.begin("cfg", false);
   prefs.putULong("uid", cfgUid);
+  if (cfgModel) prefs.putULong("mdl", cfgModel);
   prefs.putString("name", makerName);
   prefs.putString("qry", "");
   prefs.putBool("auton", cfgAutoName);
   prefs.end();
   cfgQuery[0] = 0;
-  cfgAutoName = false;
+}
+
+bool resolveFromModel(uint32_t model) {
+  if (model < 1000) return false;
+  char handle[24] = "";
+  uint32_t found = 0;
+  if (!lookupCreator(model, found, handle, sizeof(handle)) || found < 1000) return false;
+  cfgModel = model;
+  cfgUid = found;
+  if (nameNeedsFetch() && handle[0]) copyField(makerName, sizeof(makerName), handle);
+  return true;
 }
 
 void resolveIdentity() {
   if (WiFi.status() != WL_CONNECTED) return;
-  bool needUid = cfgUid < 1000 && cfgQuery[0];
   bool needName = nameNeedsFetch();
-  if (!needUid && !needName) return;
-  drawStatus("MakerWorld", needUid ? "model lezen" : "naam ophalen");
-  if (needUid) {
+  uint32_t model = cfgModel;
+  if (!model && cfgQuery[0]) {
     uint32_t uid = 0;
-    uint32_t model = 0;
     String err;
-    if (!parseMakerField(cfgQuery, uid, model, err)) return;
-    if (uid >= 1000) cfgUid = uid;
-    if (model) {
-      char handle[24] = "";
-      uint32_t found = 0;
-      if (!lookupCreator(model, found, handle, sizeof(handle))) return;
-      cfgUid = found;
-      if (needName && handle[0]) copyField(makerName, sizeof(makerName), handle);
-      needName = nameNeedsFetch();
-    }
+    parseMakerField(cfgQuery, uid, model, err);
+    if (uid >= 1000 && !model) cfgUid = uid;
   }
-  if (cfgUid >= 1000 && needName) {
+  if (!model && cfgUid >= 1000 && !needName) return;
+  if (model) {
+    drawStatus("MakerWorld", "model lezen");
+    if (!resolveFromModel(model)) {
+      strncpy(lastError, "Model niet gevonden", sizeof(lastError) - 1);
+      return;
+    }
+  } else if (cfgUid >= 1000 && needName) {
+    drawStatus("MakerWorld", "naam ophalen");
     char handle[24] = "";
     if (lookupProfileHandle(cfgUid, handle, sizeof(handle)) && handle[0]) {
       copyField(makerName, sizeof(makerName), handle);
     }
   }
-  if (cfgUid >= 1000 && makerName[0] && strcmp(makerName, "Maker") != 0) saveIdentity();
-  else if (cfgUid >= 1000) {
-    prefs.begin("cfg", false);
-    prefs.putULong("uid", cfgUid);
-    prefs.putString("qry", "");
-    prefs.end();
-    cfgQuery[0] = 0;
-  }
+  if (cfgUid >= 1000) saveIdentity();
 }
 
 void handleSave() {
@@ -2257,6 +2289,7 @@ void handleSave() {
   prefs.putString("name", autoName ? "" : shown);
   prefs.putBool("auton", autoName);
   prefs.putString("qry", model ? uidTxt : "");
+  prefs.putULong("mdl", model);
   prefs.putString("token", www.arg("token"));
   prefs.putString("chat", www.arg("chat"));
   String host = www.arg("mqhost");

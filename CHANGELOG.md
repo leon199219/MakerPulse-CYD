@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026.11.07m
+
+### Fixed
+
+- A model link is resolved to the MakerWorld account id. A saved model number no longer asks for a profile that does not exist, so the totals update again.
+- MQTT can turn the backlight on, off, and dim it again, including when automatic switch-off is selected.
+
 ## 2026.11.07l
 
 ### Fixed
