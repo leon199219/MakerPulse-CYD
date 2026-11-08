@@ -1,5 +1,5 @@
-// MakerPulse CYD 2026.11.08a
-#define MAKERPULSE_FW "2026.11.08a"
+// MakerPulse CYD 2026.11.08b
+#define MAKERPULSE_FW "2026.11.08b"
 /*
  * ========== WHAT DO YOU NEED TO CHANGE? ==========
  *
@@ -330,11 +330,11 @@ bool httpsGet(const String& url, String& body) {
 
 void noteMwFail() {
   int c = lastHttpCode;
-  if (c == 404) strncpy(lastError, "MW profiel onbekend", sizeof(lastError) - 1);
-  else if (c == -11) strncpy(lastError, "MW start mislukt", sizeof(lastError) - 1);
-  else if (c == -1) strncpy(lastError, "MW tls mislukt", sizeof(lastError) - 1);
-  else if (c > 0) snprintf(lastError, sizeof(lastError), "MW fout %d", c);
-  else snprintf(lastError, sizeof(lastError), "MW geen lijn %d", c);
+  if (c == 404) strncpy(lastError, "MW profile unknown", sizeof(lastError) - 1);
+  else if (c == -11) strncpy(lastError, "MW start failed", sizeof(lastError) - 1);
+  else if (c == -1) strncpy(lastError, "MW tls failed", sizeof(lastError) - 1);
+  else if (c > 0) snprintf(lastError, sizeof(lastError), "MW error %d", c);
+  else snprintf(lastError, sizeof(lastError), "MW no line %d", c);
   lastError[sizeof(lastError) - 1] = 0;
   lastOk = false;
 }
@@ -433,7 +433,7 @@ void drawDashboard() {
 
   long df = hasBaseline ? current.followers - lastSent.followers : 0;
   String fans = fmtNum(current.followers);
-  String word = "volgers";
+  String word = "followers";
   String plus = fmtDelta(df);
 
   tft.setFont(&fonts::Font0);
@@ -486,7 +486,7 @@ void drawDashboard() {
   int gridH = H - footH - gridTop - 2;
   int tileW = (W - margin * 2 - gapC) / 2;
   int tileH = (gridH - gapC * 2) / 3;
-  const char* labels[6] = {"Downloads", "Likes", "Prints", "Boosts", "Collecties", "Comments"};
+  const char* labels[6] = {"Downloads", "Likes", "Prints", "Boosts", "Collections", "Comments"};
   long values[6] = {current.downloads, current.likes, current.prints, current.boosts, current.collections, current.comments};
   long deltas[6] = {dd, dl, dp, db, dc, dm};
   for (int i = 0; i < 6; i++) {
@@ -510,7 +510,7 @@ void drawDashboard() {
     tft.drawString(foot, vx(10), vy(footY + footH / 2));
   } else {
     tft.setTextColor(COL_ERR, COL_BG);
-    tft.drawString(lastError[0] ? lastError : "check mislukt", vx(10), vy(footY + footH / 2));
+    tft.drawString(lastError[0] ? lastError : "check failed", vx(10), vy(footY + footH / 2));
   }
   tft.setTextDatum(middle_right);
   tft.setTextColor(COL_MUTED, COL_BG);
@@ -522,7 +522,7 @@ void drawDashboard() {
     tft.drawString(WiFi.localIP().toString(), vx(W - 10), vy(footY + footH / 2));
   } else {
     bool tg = cfgToken[0] && cfgChat[0];
-    tft.drawString(tg ? "Telegram" : "geen TG", vx(W - 10), vy(footY + footH / 2));
+    tft.drawString(tg ? "Telegram" : "no TG", vx(W - 10), vy(footY + footH / 2));
   }
 }
 
@@ -1232,14 +1232,14 @@ bool fetchStats() {
         url = String("https://api.bambulab.com/v1/design-user-service/user/profile/") + String((unsigned long)cfgUid);
         if (!httpsGet(url, body) || !jsonHasProfileShape(body)) {
           noteMwFail();
-          if (lastHttpCode == 404) strncpy(lastError, "Plak opnieuw een modellink", sizeof(lastError) - 1);
+          if (lastHttpCode == 404) strncpy(lastError, "Paste a model link", sizeof(lastError) - 1);
           return false;
         }
         saveIdentity();
       } else {
         noteMwFail();
-        if (lastHttpCode == 404) strncpy(lastError, "Plak opnieuw een modellink", sizeof(lastError) - 1);
-        else if (lastHttpCode == 200) strncpy(lastError, "MW antwoord kapot", sizeof(lastError) - 1);
+        if (lastHttpCode == 404) strncpy(lastError, "Paste a model link", sizeof(lastError) - 1);
+        else if (lastHttpCode == 200) strncpy(lastError, "MW bad reply", sizeof(lastError) - 1);
         return false;
       }
     }
@@ -1248,7 +1248,7 @@ bool fetchStats() {
     DeserializationError err = deserializeJson(doc, body);
     body = "";
     if (err) {
-      strncpy(lastError, "JSON onleesbaar", sizeof(lastError) - 1);
+      strncpy(lastError, "JSON unreadable", sizeof(lastError) - 1);
       lastOk = false;
       return false;
     }
@@ -1319,7 +1319,7 @@ bool sendTelegram(const String& text) {
   serializeJson(msg, payload);
   String response;
   bool ok = httpsPostJson(url, payload, response);
-  if (!ok) strncpy(lastError, "Telegram mislukt", sizeof(lastError) - 1);
+  if (!ok) strncpy(lastError, "Telegram failed", sizeof(lastError) - 1);
   return ok;
 }
 
@@ -1349,10 +1349,12 @@ String periodLabel(unsigned long sec) {
   if (sec >= 5400) {
     unsigned long h = (sec + 1800UL) / 3600UL;
     if (h < 1) h = 1;
-    return String(h) + " uur";
+    if (h == 1) return "1 hour";
+    return String(h) + " hours";
   }
   unsigned long m = (sec + 30UL) / 60UL;
   if (m < 1) m = 1;
+  if (m == 1) return "1 min";
   return String(m) + " min";
 }
 
@@ -1410,22 +1412,22 @@ String buildAlert() {
   s += "MakerPulse · ";
   s += makerName;
   s += "\n";
-  s += "Samenvatting · ";
+  s += "Summary · ";
   s += periodLabel(digestElapsedSec());
   s += "\n\n";
   if (cfgNotify & 1) appendTotal(s, "Downloads", current.downloads, lastSent.downloads);
   if (cfgNotify & 2) appendTotal(s, "Likes", current.likes, lastSent.likes);
   if (cfgNotify & 4) appendTotal(s, "Prints", current.prints, lastSent.prints);
   if (cfgNotify & 8) appendTotal(s, "Boosts", current.boosts, lastSent.boosts);
-  if (cfgNotify & 16) appendTotal(s, "Collecties", current.collections, lastSent.collections);
+  if (cfgNotify & 16) appendTotal(s, "Collections", current.collections, lastSent.collections);
   if (cfgNotify & 32) appendTotal(s, "Comments", current.comments, lastSent.comments);
-  if (cfgNotify & 64) appendTotal(s, "Volgers", current.followers, lastSent.followers);
+  if (cfgNotify & 64) appendTotal(s, "Followers", current.followers, lastSent.followers);
 
   if (alertCount > 0) {
     s += "\n";
     for (int i = 0; i < alertCount; i++) {
       if (s.length() > 3200) {
-        s += "…en meer modellen\n";
+        s += "…and more models\n";
         break;
       }
       s += alerts[i].title;
@@ -1434,7 +1436,7 @@ String buildAlert() {
       appendAlertLine(s, "Likes", alerts[i].dLikes);
       appendAlertLine(s, "Prints", alerts[i].dPrints);
       appendAlertLine(s, "Boosts", alerts[i].dBoosts);
-      appendAlertLine(s, "Collecties", alerts[i].dCollections);
+      appendAlertLine(s, "Collections", alerts[i].dCollections);
       appendAlertLine(s, "Comments", alerts[i].dComments);
     }
   }
@@ -1650,7 +1652,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int len) {
 void publishDiscovery() {
   if (!mqtt.connected()) return;
   JsonDocument d;
-  d["name"] = "MakerPulse scherm";
+  d["name"] = "MakerPulse screen";
   d["unique_id"] = mqttClientId;
   d["schema"] = "json";
   d["command_topic"] = topicCmd;
@@ -1671,7 +1673,7 @@ void publishDiscovery() {
   mqtt.publish(topicDisc, payload.c_str(), true);
 
   static const char* keys[] = {"downloads", "likes", "prints", "boosts", "collections", "comments", "followers"};
-  static const char* names[] = {"Downloads", "Likes", "Prints", "Boosts", "Collecties", "Comments", "Volgers"};
+  static const char* names[] = {"Downloads", "Likes", "Prints", "Boosts", "Collections", "Comments", "Followers"};
   static const char* icons[] = {"mdi:download", "mdi:heart",        "mdi:printer-3d", "mdi:rocket-launch",
                                 "mdi:bookmark", "mdi:comment",      "mdi:account-group"};
   for (int i = 0; i < 7; i++) {
@@ -1722,10 +1724,10 @@ void ensureMqtt(bool force) {
   }
   if (!ok) {
     int st = mqtt.state();
-    if (st == 4 || st == 5) strncpy(mqttMsg, "MQTT login fout", sizeof(mqttMsg) - 1);
+    if (st == 4 || st == 5) strncpy(mqttMsg, "MQTT auth failed", sizeof(mqttMsg) - 1);
     else if (st == -2) strncpy(mqttMsg, "MQTT geweigerd", sizeof(mqttMsg) - 1);
-    else if (st == -4) strncpy(mqttMsg, "MQTT geen broker", sizeof(mqttMsg) - 1);
-    else strncpy(mqttMsg, "MQTT geen verbinding", sizeof(mqttMsg) - 1);
+    else if (st == -4) strncpy(mqttMsg, "MQTT no broker", sizeof(mqttMsg) - 1);
+    else strncpy(mqttMsg, "MQTT offline", sizeof(mqttMsg) - 1);
     mqttMsg[sizeof(mqttMsg) - 1] = 0;
     return;
   }
@@ -1922,52 +1924,52 @@ void sendSetupPage() {
           ".chk{display:flex;align-items:center;gap:8px;margin:8px 0;color:#eee}"
           "small{color:#8d8d8d}</style></head><body><div class=wrap>"
           "<div class=top><div class=mark></div><div><h1>MakerPulse</h1>"
-          "<p class=sub>MakerWorld op de CYD</p></div></div>"
-          "<p><small>WiFi, een modellink of UID, Telegram en MQTT. Opslaan herstart het scherm.</small></p>"
-          "<form id=f method=POST action=/save onsubmit=\"document.getElementById('go').textContent='Opslaan…';\">";
-  html += "<label>WiFi-naam</label><input name=ssid maxlength=32 value=\"";
+          "<p class=sub>MakerWorld on the CYD</p></div></div>"
+          "<p><small>Wi-Fi, a model link or UID, Telegram and MQTT. Save restarts the screen.</small></p>"
+          "<form id=f method=POST action=/save onsubmit=\"document.getElementById('go').textContent='Saving…';\">";
+  html += "<label>Wi-Fi name</label><input name=ssid maxlength=32 value=\"";
   html += htmlEsc(cfgSsid);
-  html += "\"><label>WiFi-wachtwoord</label><input name=pass type=password maxlength=64 value=\"";
+  html += "\"><label>Wi-Fi password</label><input name=pass type=password maxlength=64 value=\"";
   html += htmlEsc(cfgPass);
-  html += "\"><p><small id=nets>Netwerken zoeken…</small></p><select id=pick></select>";
-  html += "<label>MakerWorld — link van een eigen model, of UID</label><input name=uid maxlength=180 placeholder=\"https://makerworld.com/…/models/…\" value=\"";
+  html += "\"><p><small id=nets>Searching for networks…</small></p><select id=pick></select>";
+  html += "<label>MakerWorld — link to one of your models, or UID</label><input name=uid maxlength=180 placeholder=\"https://makerworld.com/…/models/…\" value=\"";
   html += cfgUid ? String(cfgUid) : "";
-  html += "\"><label>Naam op het scherm</label><input name=name maxlength=22 placeholder=\"leeg = MakerWorld-gebruikersnaam\" value=\"";
+  html += "\"><label>Name on the screen</label><input name=name maxlength=22 placeholder=\"empty = MakerWorld username\" value=\"";
   if (makerName[0] && strcmp(makerName, "Maker") != 0) html += htmlEsc(makerName);
   html += "\"><label>Telegram-token</label><input name=token maxlength=78 value=\"";
   html += htmlEsc(cfgToken);
   html += "\"><label>Telegram chat-ID</label><input name=chat maxlength=22 value=\"";
   html += htmlEsc(cfgChat);
-  html += "\"><label>Telegram-samenvatting</label><select name=tgevery>";
-  html += String("<option value=0") + (cfgTgEvery == 0 ? " selected" : "") + ">Elke check</option>";
-  html += String("<option value=3600") + (cfgTgEvery == 3600 ? " selected" : "") + ">1 uur</option>";
-  html += String("<option value=21600") + (cfgTgEvery == 21600 ? " selected" : "") + ">6 uur</option>";
-  html += String("<option value=86400") + (cfgTgEvery == 86400 ? " selected" : "") + ">24 uur</option></select>";
-  html += "<label>Check-interval</label><select name=poll>";
+  html += "\"><label>Telegram summary</label><select name=tgevery>";
+  html += String("<option value=0") + (cfgTgEvery == 0 ? " selected" : "") + ">Every check</option>";
+  html += String("<option value=3600") + (cfgTgEvery == 3600 ? " selected" : "") + ">1 hour</option>";
+  html += String("<option value=21600") + (cfgTgEvery == 21600 ? " selected" : "") + ">6 hours</option>";
+  html += String("<option value=86400") + (cfgTgEvery == 86400 ? " selected" : "") + ">24 hours</option></select>";
+  html += "<label>Check interval</label><select name=poll>";
   html += String("<option value=120") + (cfgPoll == 120 ? " selected" : "") + ">2 min</option>";
   html += String("<option value=300") + (cfgPoll == 300 ? " selected" : "") + ">5 min</option>";
   html += String("<option value=600") + (cfgPoll == 600 ? " selected" : "") + ">10 min</option>";
   html += String("<option value=900") + (cfgPoll == 900 ? " selected" : "") + ">15 min</option></select>";
-  html += "<label>Scherm</label><select name=bl>";
+  html += "<label>Screen</label><select name=bl>";
   html += String("<option value=0") + (cfgBlMode != 1 ? " selected" : "") + ">MQTT / Home Assistant</option>";
-  html += String("<option value=1") + (cfgBlMode == 1 ? " selected" : "") + ">Automatisch, uit na 10 min</option></select>";
-  html += "<label>Stand</label><select name=rot>";
-  html += String("<option value=1") + (cfgRot != 3 ? " selected" : "") + ">Liggend, USB links</option>";
-  html += String("<option value=3") + (cfgRot == 3 ? " selected" : "") + ">Liggend, USB rechts</option></select>";
+  html += String("<option value=1") + (cfgBlMode == 1 ? " selected" : "") + ">Automatic, off after 10 min</option></select>";
+  html += "<label>Orientation</label><select name=rot>";
+  html += String("<option value=1") + (cfgRot != 3 ? " selected" : "") + ">Landscape, USB left</option>";
+  html += String("<option value=3") + (cfgRot == 3 ? " selected" : "") + ">Landscape, USB right</option></select>";
   html += "<label class=chk><input type=checkbox name=mir";
   if (cfgMirror) html += " checked";
-  html += "> Spiegelen</label>";
-  html += "<label>MQTT-broker</label><input name=mqhost maxlength=62 placeholder=\"leeg = uit\" value=\"";
+  html += "> Mirror</label>";
+  html += "<label>MQTT broker</label><input name=mqhost maxlength=62 placeholder=\"empty = off\" value=\"";
   html += htmlEsc(cfgMqttHost);
-  html += "\"><label>MQTT-poort</label><input name=mqport inputmode=numeric value=\"";
+  html += "\"><label>MQTT port</label><input name=mqport inputmode=numeric value=\"";
   html += String(cfgMqttPort ? cfgMqttPort : 1883);
-  html += "\"><label>MQTT-gebruiker</label><input name=mquser maxlength=30 value=\"";
+  html += "\"><label>MQTT user</label><input name=mquser maxlength=30 value=\"";
   html += htmlEsc(cfgMqttUser);
-  html += "\"><label>MQTT-wachtwoord</label><input name=mqpass type=password maxlength=62 value=\"";
+  html += "\"><label>MQTT password</label><input name=mqpass type=password maxlength=62 value=\"";
   html += htmlEsc(cfgMqttPass);
-  html += "\"><p>Telegram bij</p>";
+  html += "\"><p>Telegram for</p>";
   const char* bits[] = {"n1", "n2", "n4", "n8", "n16", "n32", "n64"};
-  const char* labels[] = {"Downloads", "Likes", "Prints", "Boosts", "Collecties", "Comments", "Volgers"};
+  const char* labels[] = {"Downloads", "Likes", "Prints", "Boosts", "Collections", "Comments", "Followers"};
   const uint8_t masks[] = {1, 2, 4, 8, 16, 32, 64};
   for (int i = 0; i < 7; i++) {
     html += "<label class=chk><input type=checkbox name=";
@@ -1977,13 +1979,13 @@ void sendSetupPage() {
     html += labels[i];
     html += "</label>";
   }
-  html += "<button type=submit id=go>Opslaan en herstarten</button>"
-          "<button class=ghost type=submit formaction=/reset formmethod=post>Wissen en opnieuw</button>"
+  html += "<button type=submit id=go>Save and restart</button>"
+          "<button class=ghost type=submit formaction=/reset formmethod=post>Clear and start over</button>"
           "</form></div><script>fetch('/scan').then(r=>r.json()).then(list=>{"
           "const p=document.getElementById('pick');const n=document.getElementById('nets');"
           "const ssid=document.querySelector('[name=ssid]');"
-          "if(!list.length){n.textContent='Geen netwerken gevonden. Typ de naam hierboven.';return;}"
-          "n.textContent='Of kies een gevonden netwerk:';"
+          "if(!list.length){n.textContent='No networks found. Type the name above.';return;}"
+          "n.textContent='Or pick a network:';"
           "list.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;"
           "if(s===ssid.value)o.selected=true;p.appendChild(o);});"
           "p.onchange=()=>{if(p.value)ssid.value=p.value;};"
@@ -2047,7 +2049,7 @@ bool parseMakerField(const String& raw, uint32_t& uid, uint32_t& modelId, String
   String text = raw;
   text.trim();
   if (!text.length()) {
-    err = "Plak een modellink of je numerieke UID.";
+    err = "Paste a model link or your numeric UID.";
     return false;
   }
   String low = text;
@@ -2059,7 +2061,7 @@ bool parseMakerField(const String& raw, uint32_t& uid, uint32_t& modelId, String
   if (digits) {
     uid = strtoul(text.c_str(), nullptr, 10);
     if (uid < 1000) {
-      err = "Die UID is te kort.";
+      err = "That UID is too short.";
       return false;
     }
     return true;
@@ -2075,7 +2077,7 @@ bool parseMakerField(const String& raw, uint32_t& uid, uint32_t& modelId, String
   if (!model) model = digitsAfter(low, "/designs/");
   if (!model) model = digitsAfter(low, "/design/");
   if (model < 1000) {
-    err = "Plak de link van een eigen model (…/models/…) of je numerieke UID.";
+    err = "Paste a link to one of your models (…/models/…) or your numeric UID.";
     return false;
   }
   modelId = model;
@@ -2269,7 +2271,7 @@ void resolveIdentity() {
     if (!model && uid >= 1000) cfgUid = uid;
   }
   if (model) {
-    drawStatus("MakerWorld", "model lezen");
+    drawStatus("MakerWorld", "reading model");
     resolveFromModel(model);
   }
   if (cfgUid < 1000 && (uint32_t)MAKERWORLD_UID >= 1000) cfgUid = (uint32_t)MAKERWORLD_UID;
@@ -2286,7 +2288,7 @@ void handleSave() {
   String ssid = www.arg("ssid");
   ssid.trim();
   if (ssid.length() < 1 || ssid.length() > 32) {
-    www.send(400, "text/plain; charset=utf-8", "Vul een WiFi-naam in.");
+    www.send(400, "text/plain; charset=utf-8", "Enter a Wi-Fi name.");
     return;
   }
   String uidTxt = www.arg("uid");
@@ -2344,7 +2346,7 @@ void handleSave() {
   www.send(200, "text/html; charset=utf-8",
            "<!DOCTYPE html><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\">"
            "<body style=\"margin:0;background:#101110;color:#f3f3f3;font-family:system-ui,sans-serif;padding:28px\">"
-           "<h1 style=\"font-weight:650\">Opgeslagen</h1><p>Het scherm herstart. De MakerWorld-naam wordt vanzelf ingevuld als je het veld leeg liet.</p></body>");
+           "<h1 style=\"font-weight:650\">Saved</h1><p>The screen restarts. The MakerWorld username is filled in if you left the name empty.</p></body>");
   delay(1200);
   ESP.restart();
 }
@@ -2357,14 +2359,14 @@ void handleReset() {
   www.send(200, "text/html; charset=utf-8",
            "<!DOCTYPE html><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\">"
            "<body style=\"margin:0;background:#101110;color:#f3f3f3;font-family:system-ui,sans-serif;padding:28px\">"
-           "<h1 style=\"font-weight:650\">Gewist</h1><p>Het scherm start opnieuw en toont het instel-netwerk.</p></body>");
+           "<h1 style=\"font-weight:650\">Cleared</h1><p>The screen starts again and shows the setup network.</p></body>");
   delay(400);
   ESP.restart();
 }
 
 void handleNotFound() {
   if (!portalMode) {
-    www.send(404, "text/plain", "niet gevonden");
+    www.send(404, "text/plain", "not found");
     return;
   }
   www.sendHeader("Location", "http://192.168.4.1/", true);
@@ -2382,7 +2384,7 @@ void drawPortal(const char* apSsid) {
   tft.drawString("MAKERPULSE", vx(12), vy(12));
   tft.setFont(&fonts::Font2);
   tft.setTextColor(COL_FG, COL_BG);
-  tft.drawString("Instellen", vx(12), vy(26));
+  tft.drawString("Setup", vx(12), vy(26));
 
   int y = 54;
   tft.fillCircle(vx(22), vy(y + 6), 9, COL_GREEN);
@@ -2398,7 +2400,7 @@ void drawPortal(const char* apSsid) {
   tft.setTextColor(COL_GREEN, COL_BG);
   tft.drawString(apSsid, vx(40), vy(y + 16));
   tft.setTextColor(COL_MUTED, COL_BG);
-  tft.drawString("wachtwoord   makerpulse", vx(40), vy(y + 30));
+  tft.drawString("password   makerpulse", vx(40), vy(y + 30));
 
   y = 104;
   tft.fillCircle(vx(22), vy(y + 6), 9, COL_GREEN);
@@ -2414,11 +2416,11 @@ void drawPortal(const char* apSsid) {
   tft.setTextColor(COL_GREEN, COL_BG);
   tft.drawString("192.168.4.1", vx(40), vy(y + 16));
   tft.setTextColor(COL_MUTED, COL_BG);
-  tft.drawString("plak een link van je model", vx(40), vy(y + 30));
+  tft.drawString("paste a link to your model", vx(40), vy(y + 30));
 
   if (H > 200) {
     tft.setTextColor(COL_MUTED, COL_BG);
-    tft.drawString("Daarna herstart dit scherm.", vx(12), vy(H - 16));
+    tft.drawString("Then this screen restarts.", vx(12), vy(H - 16));
   }
 }
 
@@ -2599,14 +2601,14 @@ void setup() {
 
   connectWifi();
   if (WiFi.status() != WL_CONNECTED) {
-    strncpy(lastError, "WiFi mislukt", sizeof(lastError) - 1);
+    strncpy(lastError, "Wi-Fi failed", sizeof(lastError) - 1);
     lastOk = false;
-    drawStatus("WiFi mislukt", "Tik het scherm");
+    drawStatus("Wi-Fi failed", "Tap the screen");
     return;
   }
   resolveIdentity();
   if (!configUsable()) {
-    drawStatus("Model niet gevonden", "Tik om opnieuw");
+    drawStatus("Model not found", "Tap to try again");
     while (!touchPressed()) delay(40);
     runSetupPortal();
   }
@@ -2625,7 +2627,7 @@ void setup() {
   tft.setTextDatum(middle_center);
   tft.setFont(&fonts::Font2);
   tft.setTextColor(COL_FG, COL_BG);
-  tft.drawString("Verbonden", vx(layoutW() / 2), vy(layoutH() / 2 - 28));
+  tft.drawString("Connected", vx(layoutW() / 2), vy(layoutH() / 2 - 28));
   tft.setFont(&fonts::Font0);
   tft.setTextColor(COL_MUTED, COL_BG);
   String ip = WiFi.localIP().toString();
@@ -2645,7 +2647,7 @@ void loop() {
       setupMqtt();
       tick();
     } else {
-      drawStatus("WiFi mislukt", "Tik het scherm");
+      drawStatus("Wi-Fi failed", "Tap the screen");
       for (int i = 0; i < 30; i++) {
         if (touchPressed()) runSetupPortal();
         delay(100);
