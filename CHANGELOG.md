@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026.11.08a
+
+### Changed
+
+- The statistics screen uses a dark tile layout with a green bar. The six totals, the changes, the follower count and the status line stay the same.
+
 ## 2026.11.07
 
 ### Added
