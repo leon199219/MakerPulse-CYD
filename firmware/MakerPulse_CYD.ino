@@ -1,5 +1,5 @@
-// MakerPulse CYD 2026.11.07m
-#define MAKERPULSE_FW "2026.11.07m"
+// MakerPulse CYD 2026.11.07n
+#define MAKERPULSE_FW "2026.11.07n"
 /*
  * ========== WHAT DO YOU NEED TO CHANGE? ==========
  *
@@ -300,36 +300,29 @@ bool mqttEnabled() { return cfgMqttHost[0] != '\0'; }
 bool httpsGet(const String& url, String& body) {
   body = "";
   lastHttpCode = 0;
-  if (mqtt.connected()) mqtt.disconnect();
-  for (int attempt = 0; attempt < 3; attempt++) {
-    if (attempt) delay(500);
+  for (int attempt = 0; attempt < 2; attempt++) {
+    if (attempt) delay(400);
     WiFiClientSecure client;
     client.setInsecure();
-    client.setTimeout(15000);
-    client.setHandshakeTimeout(15);
     HTTPClient http;
-    http.useHTTP10(true);
-    http.setTimeout(15000);
-    http.setReuse(false);
+    http.setTimeout(20000);
     http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
     if (!http.begin(client, url)) {
       lastHttpCode = -11;
       continue;
     }
     http.addHeader("Accept", "application/json");
+    http.addHeader("Accept-Encoding", "identity");
     http.addHeader("User-Agent", MW_UA);
-    http.addHeader("Connection", "close");
     int code = http.GET();
     lastHttpCode = code;
     if (code == 200) {
       body = http.getString();
       http.end();
-      client.stop();
       if (body.length() > 2) return true;
       continue;
     }
     http.end();
-    client.stop();
     if (code == 404) break;
   }
   return false;
@@ -1105,8 +1098,6 @@ bool fetchAllComments(const long* ids, int nids) {
   static HTTPClient http;
   client.setInsecure();
   client.setTimeout(20000);
-  client.setHandshakeTimeout(15);
-  http.useHTTP10(true);
   http.setTimeout(20000);
   http.setReuse(false);
   http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
@@ -1220,35 +1211,34 @@ bool fetchStats() {
                  String((unsigned long)cfgUid);
     String body;
     if (!httpsGet(url, body) || !jsonHasProfileShape(body)) {
-      if (lastHttpCode == 404) {
-        uint32_t model = cfgModel;
-        if (!model && cfgQuery[0]) {
-          uint32_t ignored = 0;
-          String err;
-          parseMakerField(cfgQuery, ignored, model, err);
-        }
-        if (!model) model = cfgUid;
-        uint32_t previous = cfgUid;
-        if (model >= 1000 && resolveFromModel(model) && cfgUid >= 1000 && cfgUid != previous) {
-          url = String("https://api.bambulab.com/v1/design-user-service/user/profile/") + String((unsigned long)cfgUid);
-          if (!httpsGet(url, body) || !jsonHasProfileShape(body)) {
-            noteMwFail();
-            if (lastHttpCode == 404) strncpy(lastError, "Plak opnieuw een modellink", sizeof(lastError) - 1);
-            return false;
-          }
-          saveIdentity();
-        } else if (model >= 1000 && cfgUid == previous) {
-          strncpy(lastError, "Plak opnieuw een modellink", sizeof(lastError) - 1);
-          lastOk = false;
-          return false;
-        } else {
+      uint32_t fresh = 0;
+      char handle[24] = "";
+      bool recovered = false;
+      if (cfgModel >= 1000 && lookupCreator(cfgModel, fresh, handle, sizeof(handle)) && fresh >= 1000) {
+        cfgUid = fresh;
+        recovered = true;
+      } else if ((uint32_t)MAKERWORLD_UID >= 1000) {
+        cfgUid = (uint32_t)MAKERWORLD_UID;
+        recovered = true;
+      } else if (cfgUid >= 1000 && lookupCreator(cfgUid, fresh, handle, sizeof(handle)) && fresh >= 1000 &&
+                 fresh != cfgUid) {
+        cfgModel = cfgUid;
+        cfgUid = fresh;
+        recovered = true;
+      }
+      if (recovered) {
+        if (nameNeedsFetch() && handle[0]) copyField(makerName, sizeof(makerName), handle);
+        url = String("https://api.bambulab.com/v1/design-user-service/user/profile/") + String((unsigned long)cfgUid);
+        if (!httpsGet(url, body) || !jsonHasProfileShape(body)) {
           noteMwFail();
+          if (lastHttpCode == 404) strncpy(lastError, "Plak opnieuw een modellink", sizeof(lastError) - 1);
           return false;
         }
+        saveIdentity();
       } else {
         noteMwFail();
-        if (lastHttpCode == 200) strncpy(lastError, "MW antwoord kapot", sizeof(lastError) - 1);
-        else if (lastHttpCode == 404) strncpy(lastError, "Plak opnieuw een modellink", sizeof(lastError) - 1);
+        if (lastHttpCode == 404) strncpy(lastError, "Plak opnieuw een modellink", sizeof(lastError) - 1);
+        else if (lastHttpCode == 200) strncpy(lastError, "MW antwoord kapot", sizeof(lastError) - 1);
         return false;
       }
     }
@@ -2113,9 +2103,7 @@ bool pullJsonString(const char* win, const char* key, char* out, size_t n) {
 bool readCreator(const String& url, const char* anchor, uint32_t& uid, char* handle, size_t handleN) {
   WiFiClientSecure client;
   client.setInsecure();
-  client.setHandshakeTimeout(15);
   HTTPClient http;
-  http.useHTTP10(true);
   http.setTimeout(15000);
   if (!http.begin(client, url)) return false;
   http.addHeader("Accept", "application/json");
@@ -2188,8 +2176,54 @@ bool readCreator(const String& url, const char* anchor, uint32_t& uid, char* han
 bool lookupCreator(uint32_t modelId, uint32_t& uid, char* handle, size_t handleN) {
   uid = 0;
   if (handle && handleN) handle[0] = 0;
+  if (modelId < 1000) return false;
   String url = String("https://api.bambulab.com/v1/design-service/design/") + String(modelId);
-  return readCreator(url, "designCreator\"", uid, handle, handleN);
+  WiFiClientSecure client;
+  client.setInsecure();
+  HTTPClient http;
+  http.setTimeout(20000);
+  if (!http.begin(client, url)) return false;
+  http.addHeader("Accept", "application/json");
+  http.addHeader("Accept-Encoding", "identity");
+  http.addHeader("User-Agent", MW_UA);
+  int code = http.GET();
+  if (code != 200) {
+    http.end();
+    return false;
+  }
+  static char buf[7000];
+  int n = 0;
+  buf[0] = 0;
+  WiFiClient* stream = http.getStreamPtr();
+  unsigned long start = millis();
+  while (n < (int)sizeof(buf) - 1 && millis() - start < 15000) {
+    if (!stream->available()) {
+      if (!http.connected()) break;
+      delay(2);
+      continue;
+    }
+    int c = stream->read();
+    if (c < 0) break;
+    buf[n++] = (char)c;
+    buf[n] = 0;
+  }
+  http.end();
+  char* creator = strstr(buf, "\"designCreator\":{");
+  if (!creator) creator = strstr(buf, "\"designCreator\": {");
+  if (!creator) return false;
+  char* u = strstr(creator, "\"uid\":");
+  if (!u || u - creator > 48) return false;
+  uid = strtoul(u + 6, nullptr, 10);
+  if (handle && handleN) {
+    char* h = strstr(creator, "\"handle\":\"");
+    if (h && h - creator < 900) {
+      h += 10;
+      size_t k = 0;
+      while (*h && *h != '"' && *h != '\\' && k + 1 < handleN) handle[k++] = *h++;
+      handle[k] = 0;
+    }
+  }
+  return uid >= 1000;
 }
 
 bool lookupProfileHandle(uint32_t uid, char* handle, size_t handleN) {
@@ -2226,23 +2260,19 @@ bool resolveFromModel(uint32_t model) {
 
 void resolveIdentity() {
   if (WiFi.status() != WL_CONNECTED) return;
-  bool needName = nameNeedsFetch();
   uint32_t model = cfgModel;
   if (!model && cfgQuery[0]) {
     uint32_t uid = 0;
     String err;
     parseMakerField(cfgQuery, uid, model, err);
-    if (uid >= 1000 && !model) cfgUid = uid;
+    if (!model && uid >= 1000) cfgUid = uid;
   }
-  if (!model && cfgUid >= 1000 && !needName) return;
   if (model) {
     drawStatus("MakerWorld", "model lezen");
-    if (!resolveFromModel(model)) {
-      strncpy(lastError, "Model niet gevonden", sizeof(lastError) - 1);
-      return;
-    }
-  } else if (cfgUid >= 1000 && needName) {
-    drawStatus("MakerWorld", "naam ophalen");
+    resolveFromModel(model);
+  }
+  if (cfgUid < 1000 && (uint32_t)MAKERWORLD_UID >= 1000) cfgUid = (uint32_t)MAKERWORLD_UID;
+  if (nameNeedsFetch() && cfgUid >= 1000) {
     char handle[24] = "";
     if (lookupProfileHandle(cfgUid, handle, sizeof(handle)) && handle[0]) {
       copyField(makerName, sizeof(makerName), handle);

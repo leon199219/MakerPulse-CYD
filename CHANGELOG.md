@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026.11.07n
+
+### Fixed
+
+- Profile requests use the same HTTPS call as the last firmware that updated the totals.
+- A saved model link is read again for the account id. If config.h still has a numeric UID, that UID is used when the stored number is not an account.
+
 ## 2026.11.07m
 
 ### Fixed
