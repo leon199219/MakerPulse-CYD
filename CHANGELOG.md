@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026.11.07l
+
+### Fixed
+
+- MakerWorld totals update again. A failed check no longer puts the whole screen back to the previous numbers, and the profile request is retried.
+- The footer names the real failure, such as `MW tls mislukt` or `MW fout 404`, instead of always saying offline.
+- MQTT is paused while that request runs, then connected again so the new totals are published.
+
 ## 2026.11.07k
 
 ### Fixed

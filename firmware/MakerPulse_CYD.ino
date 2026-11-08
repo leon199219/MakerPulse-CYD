@@ -1,5 +1,5 @@
-// MakerPulse CYD 2026.11.07k
-#define MAKERPULSE_FW "2026.11.07k"
+// MakerPulse CYD 2026.11.07l
+#define MAKERPULSE_FW "2026.11.07l"
 /*
  * ========== WHAT DO YOU NEED TO CHANGE? ==========
  *
@@ -270,6 +270,7 @@ DNSServer dnsServer;
 static const char AP_PASS[] = "makerpulse";
 char lastError[40] = "";
 bool lastOk = false;
+int lastHttpCode = 0;
 int censusFound = 0;
 int censusTotal = 0;
 bool commentsReady = false;
@@ -289,28 +290,59 @@ char topicAvail[48] = "";
 char topicStats[48] = "";
 char topicDisc[64] = "";
 char mqttMsg[24] = "";
+bool netBusy = false;
 
 void serviceNet();
 
 bool mqttEnabled() { return cfgMqttHost[0] != '\0'; }
 
 bool httpsGet(const String& url, String& body) {
-  WiFiClientSecure client;
-  client.setInsecure();
-  HTTPClient http;
-  http.setTimeout(20000);
-  http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-  if (!http.begin(client, url)) return false;
-  http.addHeader("Accept", "application/json");
-  http.addHeader("User-Agent", MW_UA);
-  int code = http.GET();
-  if (code != 200) {
+  body = "";
+  lastHttpCode = 0;
+  if (mqtt.connected()) mqtt.disconnect();
+  for (int attempt = 0; attempt < 3; attempt++) {
+    if (attempt) delay(500);
+    WiFiClientSecure client;
+    client.setInsecure();
+    client.setTimeout(15000);
+    client.setHandshakeTimeout(15);
+    HTTPClient http;
+    http.useHTTP10(true);
+    http.setTimeout(15000);
+    http.setReuse(false);
+    http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+    if (!http.begin(client, url)) {
+      lastHttpCode = -11;
+      continue;
+    }
+    http.addHeader("Accept", "application/json");
+    http.addHeader("User-Agent", MW_UA);
+    http.addHeader("Connection", "close");
+    int code = http.GET();
+    lastHttpCode = code;
+    if (code == 200) {
+      body = http.getString();
+      http.end();
+      client.stop();
+      if (body.length() > 2) return true;
+      continue;
+    }
     http.end();
-    return false;
+    client.stop();
+    if (code == 404) break;
   }
-  body = http.getString();
-  http.end();
-  return body.length() > 0;
+  return false;
+}
+
+void noteMwFail() {
+  int c = lastHttpCode;
+  if (c == 404) strncpy(lastError, "MW profiel onbekend", sizeof(lastError) - 1);
+  else if (c == -11) strncpy(lastError, "MW start mislukt", sizeof(lastError) - 1);
+  else if (c == -1) strncpy(lastError, "MW tls mislukt", sizeof(lastError) - 1);
+  else if (c > 0) snprintf(lastError, sizeof(lastError), "MW fout %d", c);
+  else snprintf(lastError, sizeof(lastError), "MW geen lijn %d", c);
+  lastError[sizeof(lastError) - 1] = 0;
+  lastOk = false;
 }
 
 bool httpsPostJson(const String& url, const String& payload, String& response) {
@@ -1072,6 +1104,8 @@ bool fetchAllComments(const long* ids, int nids) {
   static HTTPClient http;
   client.setInsecure();
   client.setTimeout(20000);
+  client.setHandshakeTimeout(15);
+  http.useHTTP10(true);
   http.setTimeout(20000);
   http.setReuse(false);
   http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
@@ -1185,8 +1219,8 @@ bool fetchStats() {
                  String((unsigned long)cfgUid);
     String body;
     if (!httpsGet(url, body) || !jsonHasProfileShape(body)) {
-      strncpy(lastError, "MakerWorld offline", sizeof(lastError) - 1);
-      lastOk = false;
+      noteMwFail();
+      if (lastHttpCode == 200) strncpy(lastError, "MW antwoord kapot", sizeof(lastError) - 1);
       return false;
     }
 
@@ -1232,28 +1266,17 @@ bool fetchStats() {
     current.collections = doc["collectionCount"] | 0;
     current.followers = doc["fanCount"] | 0;
     nids = collectDesignIds(doc, ids, MAX_MODELS);
+    lastOk = true;
+    lastError[0] = 0;
+    drawDashboard();
   }
 
   if (!fetchAllComments(ids, nids)) {
-    if (hasBaseline) {
-      current.comments = lastSent.comments;
-      if (prevAllSnapCount > 0) {
-        memcpy(allSnaps, prevAllSnaps, sizeof(AllSnap) * prevAllSnapCount);
-        allSnapCount = prevAllSnapCount;
-      }
-      alertCount = 0;
-      lastOk = true;
-      strncpy(lastError, "Comments onvolledig", sizeof(lastError) - 1);
-      lastError[sizeof(lastError) - 1] = 0;
-      return true;
-    }
-    current.comments = 0;
-    allSnapCount = 0;
-    alertCount = 0;
-    strncpy(lastError, "Comments ophalen mislukt", sizeof(lastError) - 1);
-    lastError[sizeof(lastError) - 1] = 0;
-    lastOk = false;
-    return false;
+    if (hasBaseline) current.comments = lastSent.comments;
+    else current.comments = 0;
+    commentsReady = false;
+    lastOk = true;
+    return true;
   }
 
   lastOk = true;
@@ -1664,11 +1687,16 @@ void publishDiscovery() {
   }
 }
 
-void ensureMqtt() {
+void ensureMqtt(bool force) {
   if (!mqttEnabled()) return;
-  if (mqtt.connected()) return;
+  if (mqtt.connected()) {
+    if (!mqttMsg[0] || mqttMsg[0] != 'M' || strcmp(mqttMsg, "MQTT") != 0) {
+      strncpy(mqttMsg, "MQTT", sizeof(mqttMsg) - 1);
+    }
+    return;
+  }
   static unsigned long lastTry = 0;
-  if (millis() - lastTry < 4000) return;
+  if (!force && millis() - lastTry < 4000) return;
   lastTry = millis();
   bool ok;
   if (cfgMqttUser[0]) {
@@ -1732,7 +1760,7 @@ void setupMqtt() {
   mqtt.setCallback(mqttCallback);
   mqtt.setKeepAlive(90);
   mqtt.setSocketTimeout(4);
-  mqtt.setBufferSize(2048);
+  mqtt.setBufferSize(1024);
   strncpy(mqttMsg, "MQTT ...", sizeof(mqttMsg) - 1);
 }
 
@@ -2400,8 +2428,8 @@ void serviceNet() {
   www.handleClient();
   serviceTouch();
   serviceBacklight();
-  if (mqttEnabled()) {
-    ensureMqtt();
+  if (mqttEnabled() && !netBusy) {
+    ensureMqtt(false);
     mqtt.loop();
   }
 }
@@ -2410,6 +2438,8 @@ void connectWifi() {
   drawStatus("WiFi", cfgSsid);
   WiFi.mode(WIFI_STA);
   WiFi.setHostname("makerpulse-cyd");
+  WiFi.setSleep(false);
+  WiFi.setAutoReconnect(true);
   WiFi.begin(cfgSsid, cfgPass);
   unsigned long start = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - start < 25000) {
@@ -2431,7 +2461,9 @@ void waitInterval() {
 
 void tick() {
   ledRgb(false, false, true);
+  netBusy = true;
   bool ok = fetchStats();
+  netBusy = false;
   if (!ok) {
     ledRgb(true, false, false);
     if (hasBaseline) current = lastSent;
@@ -2442,8 +2474,11 @@ void tick() {
   }
 
   if (!commentsReady) {
-    ledRgb(true, false, false);
     drawDashboard();
+    ensureMqtt(true);
+    publishStats();
+    if (!hasBaseline || statsMoved()) noteActivity();
+    ledRgb(false, true, false);
     delay(400);
     ledOff();
     return;
@@ -2473,6 +2508,7 @@ void tick() {
     stampDigest();
   }
 
+  ensureMqtt(true);
   publishStats();
   if (wake) noteActivity();
   ledRgb(false, true, false);
@@ -2517,6 +2553,7 @@ void setup() {
   }
 
   configTzTime("CET-1CEST,M3.5.0,M10.5.0/3", "pool.ntp.org", "time.cloudflare.com");
+  for (int i = 0; i < 20 && time(nullptr) < 1700000000L; i++) delay(200);
   setupHttp();
   setupMqtt();
   tft.fillScreen(COL_BG);
