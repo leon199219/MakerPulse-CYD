@@ -1,22 +1,23 @@
 # MakerPulse
 
-![MakerPulse on a CYD, followers beside the name](docs/hero.png)
+![MakerPulse statistics screen in MakerWorld style](docs/screen-main.svg)
 
 MakerWorld statistics on a Cheap Yellow Display ([ESP32-2432S028](https://github.com/witnessmenow/ESP32-Cheap-Yellow-Display)).
-
-![MakerPulse on the CYD screen](docs/cyd.png)
 
 Downloads, likes, prints, boosts, collections and comments — when a value changes, the module sends a Telegram message with the model title. **Comments is the total across all of your published models**, not just the featured one.
 
 After flashing, the CYD talks to MakerWorld on its own. You can close the browser.
 
-**Firmware:** [`2026.11.08b`](firmware/MakerPulse_CYD.ino) · **License:** [MIT](LICENSE)
+**Firmware:** [`2026.11.09-ui4`](firmware/MakerPulse_CYD.ino) ([changelog](CHANGELOG.md)) · **License:** [MIT](LICENSE)
 
 ---
 
 ## What it does
 
 - Six entities on the 2.8" screen (240×320)
+- MakerWorld-style screen: dark grey cards, MakerWorld green, an icon per statistic (download, heart, printer, boost, bookmark, comment)
+- Smooth, anti-aliased numbers (Nunito) and a green badge (red when it drops) for each change since the last summary
+- Footer with clock, comment census, check interval, Wi-Fi bars, MQTT status and a line that counts down to the next check
 - Telegram on change
 - Each affected model's title in the message, not only the pinned one
 - MQTT → Home Assistant display backlight (on/off + brightness 0–255) and six sensors (downloads, likes, prints, boosts, collections, comments)
@@ -24,6 +25,19 @@ After flashing, the CYD talks to MakerWorld on its own. You can close the browse
 - Incomplete comment counts are discarded (`gevonden/totaal` at the bottom of the screen)
 
 No MakerWorld login, no third-party cloud. Public profile and model data only.
+
+## Screen
+
+| Statistics | Setup (first start) |
+| --- | --- |
+| ![Statistics screen](docs/screen-main.svg) | ![Setup screen](docs/screen-setup.svg) |
+
+- **Header:** your MakerWorld name and the follower count, with a badge when it changed.
+- **Cards:** downloads, likes, prints, boosts, collections and comments. A green `+1` badge (red for a drop) shows the change since the last Telegram summary.
+- **Footer:** the time of the last check (updates every minute), `found/total` comment count (red = incomplete round), check interval, Wi-Fi signal bars and an MQTT pill (green = connected). The green line along the top of the footer fills up until the next check.
+- Status screens (Wi-Fi, "Connected" with the IP and `/setup`) use the same style.
+
+The images above are rendered from the firmware's own drawing code. `docs/hero.png` and `docs/cyd.png` show the older layout.
 
 ## Web server
 
@@ -66,6 +80,20 @@ Settings saved in the browser stay on the device and override `config.h`.
 
 Full steps, Telegram, MQTT and troubleshooting: [firmware/README.md](firmware/README.md).
 
+### Updating an existing display
+
+Settings saved on the device survive an update. Flash only the app at `0x10000` and do not erase the flash:
+
+```
+esptool --chip esp32 --port COMx --baud 460800 write-flash 0x10000 MakerPulse_CYD.ino.bin
+```
+
+Arduino IDE **Upload** does the same, as long as **Erase All Flash Before Sketch Upload** stays disabled. If the board does not enter download mode by itself (`Wrong boot mode detected` / stuck on `Connecting...`), hold **BOOT**, tap **RST**, release BOOT, and start the upload again. Some boards need BOOT held until writing starts.
+
+### Serial log
+
+The sketch logs to the serial port at **115200 baud**: firmware version and reset reason at boot, Wi-Fi up/failed, and at the start and end of every check the free heap, Wi-Fi signal, IP, MQTT state and comment census. No passwords or tokens are printed.
+
 ## Hardware
 
 | | |
@@ -73,6 +101,7 @@ Full steps, Telegram, MQTT and troubleshooting: [firmware/README.md](firmware/RE
 | Board | ESP32-2432S028 (CYD 2.8", 240×320) |
 | Cable | USB that carries data (not charge-only) |
 | Network | 2.4 GHz Wi-Fi (not 5 GHz) |
+| Power | A decent 5 V USB supply (≥ 1 A). A weak supply or port can brown out the ESP32 when Wi-Fi transmits: the screen freezes and the device drops off the network. |
 | Optional | Telegram bot, MQTT / Home Assistant |
 
 Newer USB-C CYD: enable **newer CYD (USB-C)** in the configurator, or set `CYD_PANEL_ST7789 1` in `config.h`.
@@ -126,8 +155,11 @@ HTTP (`POST http://makerpulse-cyd.local/light`) only controls the backlight. The
 ## Layout
 
 ```
-firmware/MakerPulse_CYD.ino   sketch (keep as one file)
+firmware/MakerPulse_CYD.ino   sketch
 firmware/mp_types.h           types for Arduino prototypes
+firmware/mp_ui.h              screen drawing (cards, icons, header, footer, setup screen)
+firmware/mpf_nunito.h         Nunito digits as a smooth font (generated)
+firmware/FONT-LICENSE.txt     SIL Open Font License for Nunito
 firmware/config.h.example     copy to config.h — never commit
 firmware/README.md            flashing, Telegram, MQTT, troubleshooting
 docs/                         screenshots
@@ -135,7 +167,7 @@ LICENSE                       MIT
 SECURITY.md                   what never to publish
 ```
 
-`config.h` is in [`.gitignore`](.gitignore). Keep `mp_types.h` next to the `.ino`.
+`config.h` is in [`.gitignore`](.gitignore). Keep `mp_types.h`, `mp_ui.h` and `mpf_nunito.h` next to the `.ino`.
 
 ## Do not publish
 
@@ -148,3 +180,5 @@ See [SECURITY.md](SECURITY.md).
 ## License
 
 [MIT](LICENSE) © 2026 [leon199219](https://github.com/leon199219)
+
+The digit font in `firmware/mpf_nunito.h` is generated from [Nunito](https://github.com/googlefonts/nunito) (SIL Open Font License 1.1, see [firmware/FONT-LICENSE.txt](firmware/FONT-LICENSE.txt)).
