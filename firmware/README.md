@@ -51,6 +51,8 @@ Arduino on Windows crashes on paths with spaces, parentheses or OneDrive.
 3. Keep these files in that same folder:
    - `MakerPulse_CYD.ino`
    - `mp_types.h`
+   - `mp_ui.h`
+   - `mpf_nunito.h`
    - `config.h.example`
    - `config.h` (you create this in the next step)
 
@@ -150,10 +152,12 @@ That `uid` field is the numeric account number that tracking projects expect (ab
 
 ## 5. Flashing
 
-1. Confirm `config.h`, `config.h.example` and `mp_types.h` sit next to `MakerPulse_CYD.ino`.
+1. Confirm `config.h`, `config.h.example`, `mp_types.h`, `mp_ui.h` and `mpf_nunito.h` sit next to `MakerPulse_CYD.ino`.
 2. Plug in the CYD.
 3. Sketch → Upload.
-4. Stuck on "Connecting..."? Hold **BOOT**, tap **RST**, release BOOT, and upload again.
+4. Stuck on "Connecting..." or `Wrong boot mode detected`? Hold **BOOT**, tap **RST**, release BOOT, and upload again. On some boards, keep BOOT held until writing starts.
+5. Updating a CYD that is already set up: settings saved through `/setup` live in NVS and survive a normal upload. Do not enable **Erase All Flash Before Sketch Upload**. With esptool, write only the app: `write-flash 0x10000 MakerPulse_CYD.ino.bin`.
+6. Serial Monitor at **115200 baud** shows the boot reason, Wi-Fi status and a heap/Wi-Fi/MQTT line at each check (no secrets).
 
 After a successful upload the screen goes Wi-Fi → MakerWorld → your six figures.
 
@@ -167,6 +171,7 @@ Change these in **`config.h`**, save, and flash again. Do not rotate the sketch 
 | Still 90° on a USB-C CYD | `CYD_PANEL_ST7789 1`, `CYD_OFFSET_ROTATION 0`, `CYD_RGB_ORDER 1` |
 | Colours inverted or washed out | `CYD_INVERT 1` |
 | Completely white/black | USB data cable and power |
+| Screen freezes, device unreachable on Wi-Fi | Weak power supply (brownout). Use a decent 5 V ≥ 1 A supply. The serial log shows reset reason `9` after a brownout. |
 
 ## 7. Telegram
 

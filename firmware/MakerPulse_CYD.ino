@@ -1,5 +1,5 @@
 // MakerPulse CYD 2026.11.08b
-#define MAKERPULSE_FW "2026.11.08b"
+#define MAKERPULSE_FW "2026.11.09-ui4"
 /*
  * ========== WHAT DO YOU NEED TO CHANGE? ==========
  *
@@ -45,6 +45,7 @@
 #include "config.h"
 #endif
 #include "mp_types.h"
+#include "mp_ui.h"
 
 // --- Manual settings: only used when config.h is missing. ---
 #ifndef WIFI_SSID
@@ -389,90 +390,80 @@ String clockStr() {
   return String(buf);
 }
 
-void drawStatus(const char* title, const char* detail) {
-  int W = layoutW();
-  int H = layoutH();
-  tft.fillScreen(COL_BG);
-  tft.setTextDatum(middle_center);
-  tft.setFont(&fonts::Font2);
-  tft.setTextColor(COL_FG, COL_BG);
-  tft.drawString(title, vx(W / 2), vy(H / 2 - 14));
-  tft.setTextColor(COL_MUTED, COL_BG);
-  tft.drawString(detail, vx(W / 2), vy(H / 2 + 10));
+// ---------- display (restyled; see mp_ui.h) ----------
+bool uiDashShown = false;
+int uiBarW = -1;
+unsigned long uiLastSvcMs = 0;
+long uiShownMinute = -1;
+
+// Serial diagnostics (no secrets): heap, Wi-Fi, MQTT.
+void diag(const char* what) {
+  Serial.printf("[MP %lus] %s | heap %u min %u maxblk %u | wifi %d rssi %d ip %s | mqtt %d | ok %d census %d/%d\n",
+                millis() / 1000UL, what, (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getMinFreeHeap(),
+                (unsigned)ESP.getMaxAllocHeap(), (int)WiFi.status(), (int)WiFi.RSSI(),
+                WiFi.localIP().toString().c_str(), mqttEnabled() ? (mqtt.connected() ? 1 : 0) : -1, lastOk ? 1 : 0,
+                censusFound, censusTotal);
 }
 
-void drawTile(int x, int y, int w, int h, const char* label, long value, long delta) {
-  tft.fillRoundRect(vx(x), vy(y), w, h, 7, COL_CARD);
+void drawStatus(const char* title, const char* detail) {
+  uiDashShown = false;
+  ui::renderScreen(&tft, ui::Screen{0, title, detail});
+}
+
+// Draw one region through a RAM sprite so it appears in one go (no flicker).
+// 16-bit first, then 8-bit if the heap is tight; false if neither fits.
+bool uiPush(int x, int y, int w, int h, UiPaint paint, const void* ctx) {
+  LGFX_Sprite spr(&tft);
+  spr.setColorDepth(16);
+  if (!spr.createSprite(w, h)) {
+    spr.setColorDepth(8);
+    if (!spr.createSprite(w, h)) return false;
+  }
+  paint(&spr, w, h, ctx);
+  spr.pushSprite(x, y);
+  spr.deleteSprite();
+  return true;
+}
+
+void uiPaintHeader(lgfx::LovyanGFX* g, int w, int h, const void* ctx) {
+  (void)h;
+  ui::drawHeader(g, w, *(const ui::Dash*)ctx);
+}
+
+void uiPaintCard(lgfx::LovyanGFX* g, int w, int h, const void* ctx) {
+  const UiCardCtx* c = (const UiCardCtx*)ctx;
+  ui::drawCard(g, w, h, c->idx, c->value, c->delta);
+}
+
+void uiPaintFooter(lgfx::LovyanGFX* g, int w, int h, const void* ctx) {
+  (void)h;
+  ui::drawFooter(g, w, *(const ui::Dash*)ctx, 0);
+}
+
+// Last-resort card when no sprite fits: flat, but still shows the number.
+void uiPlainCard(int x, int y, int w, int h, int idx, long value, long delta) {
+  tft.fillRoundRect(x, y, w, h, 8, ui::CARD);
   tft.setTextDatum(top_left);
   tft.setFont(&fonts::Font0);
-  tft.setTextColor(COL_MUTED, COL_CARD);
-  tft.drawString(label, vx(x + 8), vy(y + 7));
-
-  String num = fmtNum(value);
-  String dlt = fmtDelta(delta);
-  int numY = y + 22;
+  tft.setTextColor(ui::MUTED, ui::CARD);
+  tft.drawString(ui::LABELS[idx], x + 10, y + 8);
   tft.setFont(&fonts::Font2);
-  tft.setTextColor(COL_FG, COL_CARD);
-  tft.drawString(num, vx(x + 8), vy(numY));
-  if (dlt.length()) {
+  tft.setTextColor(ui::FG, ui::CARD);
+  tft.drawString(fmtNum(value), x + 10, y + 22);
+  String d = fmtDelta(delta);
+  if (d.length()) {
     tft.setFont(&fonts::Font0);
     tft.setTextDatum(top_right);
-    tft.setTextColor(delta > 0 ? COL_GREEN : COL_ERR, COL_CARD);
-    tft.drawString(dlt, vx(x + w - 8), vy(numY + 6));
+    tft.setTextColor(delta > 0 ? ui::GREEN : ui::RED, ui::CARD);
+    tft.drawString(d, x + w - 8, y + 8);
   }
 }
 
 void drawDashboard() {
   int W = layoutW();
   int H = layoutH();
-  const int headH = 44;
-  const int footH = 18;
-
-  tft.fillScreen(COL_BG);
-  tft.fillRect(vx(0), vy(0), W, 3, COL_GREEN);
 
   long df = hasBaseline ? current.followers - lastSent.followers : 0;
-  String fans = fmtNum(current.followers);
-  String word = "followers";
-  String plus = fmtDelta(df);
-
-  tft.setFont(&fonts::Font0);
-  int plusW = plus.length() ? tft.textWidth(plus) : 0;
-  int wordW = tft.textWidth(word);
-  tft.setFont(&fonts::Font2);
-  int fansW = tft.textWidth(fans);
-  const int gap = 5;
-  int cursor = W - 10;
-  const int nameY = 24;
-
-  if (plusW) {
-    tft.setFont(&fonts::Font0);
-    tft.setTextDatum(middle_right);
-    tft.setTextColor(df > 0 ? COL_GREEN : COL_ERR, COL_BG);
-    tft.drawString(plus, vx(cursor), vy(nameY));
-    cursor -= plusW + gap;
-  }
-  tft.setFont(&fonts::Font0);
-  tft.setTextDatum(middle_right);
-  tft.setTextColor(COL_MUTED, COL_BG);
-  tft.drawString(word, vx(cursor), vy(nameY));
-  cursor -= wordW + gap;
-  int fansLeft = cursor - fansW;
-  tft.setFont(&fonts::Font2);
-  tft.setTextColor(COL_FG, COL_BG);
-  tft.drawString(fans, vx(cursor), vy(nameY));
-
-  String name = makerName[0] ? String(makerName) : String("Maker");
-  int nameMax = fansLeft - 16;
-  if (nameMax < 36) nameMax = 36;
-  tft.setTextDatum(middle_left);
-  tft.setFont(&fonts::Font2);
-  tft.setTextColor(COL_FG, COL_BG);
-  while (name.length() > 1 && tft.textWidth(name) > nameMax) name.remove(name.length() - 1);
-  tft.drawString(name, vx(10), vy(nameY));
-
-  tft.drawFastHLine(vx(10), vy(headH - 2), W - 20, COL_LINE);
-
   long dd = hasBaseline ? current.downloads - lastSent.downloads : 0;
   long dl = hasBaseline ? current.likes - lastSent.likes : 0;
   long dp = hasBaseline ? current.prints - lastSent.prints : 0;
@@ -480,50 +471,105 @@ void drawDashboard() {
   long dc = hasBaseline ? current.collections - lastSent.collections : 0;
   long dm = hasBaseline ? current.comments - lastSent.comments : 0;
 
-  const int margin = 8;
-  const int gapC = 6;
-  int gridTop = headH + 4;
-  int gridH = H - footH - gridTop - 2;
-  int tileW = (W - margin * 2 - gapC) / 2;
-  int tileH = (gridH - gapC * 2) / 3;
-  const char* labels[6] = {"Downloads", "Likes", "Prints", "Boosts", "Collections", "Comments"};
+  String clk = clockStr();
+  String ip = WiFi.localIP().toString();
+  bool wifiUp = WiFi.status() == WL_CONNECTED;
+
+  ui::Dash d;
+  d.name = makerName[0] ? makerName : "Maker";
+  d.followers = current.followers;
+  d.dFollowers = df;
   long values[6] = {current.downloads, current.likes, current.prints, current.boosts, current.collections, current.comments};
   long deltas[6] = {dd, dl, dp, db, dc, dm};
   for (int i = 0; i < 6; i++) {
-    int c = i % 2;
-    int r = i / 2;
-    drawTile(margin + c * (tileW + gapC), gridTop + r * (tileH + gapC), tileW, tileH, labels[i], values[i], deltas[i]);
+    d.value[i] = values[i];
+    d.delta[i] = deltas[i];
   }
-
-  int footY = H - footH;
-  tft.drawFastHLine(vx(10), vy(footY), W - 20, COL_LINE);
-  tft.setFont(&fonts::Font0);
-  tft.setTextDatum(middle_left);
-  if (lastOk) {
-    tft.setTextColor(commentsReady ? COL_MUTED : COL_ERR, COL_BG);
-    char foot[56];
-    if (censusTotal > 0) {
-      snprintf(foot, sizeof(foot), "%s  %d/%d  %ds", clockStr().c_str(), censusFound, censusTotal, cfgPoll);
-    } else {
-      snprintf(foot, sizeof(foot), "check %s  ·  %ds", clockStr().c_str(), cfgPoll);
-    }
-    tft.drawString(foot, vx(10), vy(footY + footH / 2));
-  } else {
-    tft.setTextColor(COL_ERR, COL_BG);
-    tft.drawString(lastError[0] ? lastError : "check failed", vx(10), vy(footY + footH / 2));
-  }
-  tft.setTextDatum(middle_right);
-  tft.setTextColor(COL_MUTED, COL_BG);
+  d.lastOk = lastOk;
+  d.commentsReady = commentsReady;
+  d.clock = clk.c_str();
+  d.censusFound = censusFound;
+  d.censusTotal = censusTotal;
+  d.poll = cfgPoll;
+  d.error = lastError[0] ? lastError : "check failed";
+  d.wifiUp = wifiUp;
+  d.rssi = wifiUp ? WiFi.RSSI() : -127;
+  d.mqttUp = false;
   if (mqttEnabled()) {
     bool up = mqtt.connected();
-    tft.setTextColor(up ? COL_GREEN : COL_ERR, COL_BG);
-    tft.drawString(mqttMsg[0] ? mqttMsg : (up ? "MQTT" : "MQTT ..."), vx(W - 10), vy(footY + footH / 2));
-  } else if (WiFi.status() == WL_CONNECTED) {
-    tft.drawString(WiFi.localIP().toString(), vx(W - 10), vy(footY + footH / 2));
+    d.rightMode = 0;
+    d.mqttUp = up;
+    d.rightText = mqttMsg[0] ? mqttMsg : (up ? "MQTT" : "MQTT ...");
+  } else if (wifiUp) {
+    d.rightMode = 1;
+    d.rightText = ip.c_str();
   } else {
     bool tg = cfgToken[0] && cfgChat[0];
-    tft.drawString(tg ? "Telegram" : "no TG", vx(W - 10), vy(footY + footH / 2));
+    d.rightMode = 2;
+    d.rightText = tg ? "Telegram" : "no TG";
   }
+
+  if (!uiDashShown) {
+    tft.fillScreen(ui::BG);
+    uiDashShown = true;
+  }
+  uiBarW = 0;
+  {
+    time_t t = time(nullptr);
+    if (t > 1700000000L) uiShownMinute = (long)(t / 60);
+  }
+
+  if (!uiPush(0, 0, W, ui::HEAD_H, uiPaintHeader, &d)) {
+    tft.fillRect(0, 0, W, ui::HEAD_H, ui::BG);
+    tft.setFont(&fonts::Font2);
+    tft.setTextDatum(middle_left);
+    tft.setTextColor(ui::FG, ui::BG);
+    tft.drawString(d.name, 10, 22);
+    tft.setTextDatum(middle_right);
+    tft.drawString(fmtNum(current.followers) + " followers", W - 10, 22);
+  }
+  for (int i = 0; i < 6; i++) {
+    int x, y, w, h;
+    ui::cardRect(i, W, x, y, w, h);
+    UiCardCtx c = {i, values[i], deltas[i]};
+    if (!uiPush(x, y, w, h, uiPaintCard, &c)) uiPlainCard(x, y, w, h, i, values[i], deltas[i]);
+  }
+  if (!uiPush(0, ui::FOOT_Y, W, H - ui::FOOT_Y, uiPaintFooter, &d)) {
+    tft.fillRect(0, ui::FOOT_Y, W, H - ui::FOOT_Y, ui::BAR);
+    tft.setFont(&fonts::Font0);
+    tft.setTextDatum(middle_left);
+    tft.setTextColor(lastOk ? ui::MUTED : ui::RED, ui::BAR);
+    tft.drawString(lastOk ? clk : String(d.error), 8, ui::FOOT_Y + 12);
+  }
+}
+
+// Thin progress line on top of the footer: time until the next check.
+// Only the changed pixels are painted, so it never flickers.
+// Called from waitInterval(). Does real work at most once per second:
+// redraws the whole dashboard (sprites, no flicker) when the minute changes,
+// otherwise only paints the progress-line pixels that changed.
+void uiServiceBar(unsigned long startMs, unsigned long intervalMs) {
+  if (!uiDashShown || intervalMs == 0) return;
+  unsigned long now = millis();
+  if (uiLastSvcMs != 0 && now - uiLastSvcMs < 1000UL) return;
+  uiLastSvcMs = now;
+  time_t t = time(nullptr);
+  if (t > 1700000000L) {
+    long minute = (long)(t / 60);
+    if (uiShownMinute >= 0 && minute != uiShownMinute) drawDashboard();  // footer clock; resets uiBarW
+    uiShownMinute = minute;
+  }
+  int W = layoutW();
+  unsigned long el = millis() - startMs;
+  if (el > intervalMs) el = intervalMs;
+  int bw = (int)((uint64_t)W * el / intervalMs);
+  if (bw == uiBarW) return;
+  if (uiBarW < 0 || bw < uiBarW) {
+    tft.fillRect(0, ui::FOOT_Y, W, 2, ui::DIM);
+    uiBarW = 0;
+  }
+  if (bw > uiBarW) tft.fillRect(uiBarW, ui::FOOT_Y, bw - uiBarW, 2, ui::GREEN);
+  uiBarW = bw;
 }
 
 int collectDesignIds(JsonDocument& doc, long* ids, int maxn) {
@@ -2374,54 +2420,8 @@ void handleNotFound() {
 }
 
 void drawPortal(const char* apSsid) {
-  int W = layoutW();
-  int H = layoutH();
-  tft.fillScreen(COL_BG);
-  tft.fillRect(vx(0), vy(0), W, 5, COL_GREEN);
-  tft.setTextDatum(top_left);
-  tft.setFont(&fonts::Font0);
-  tft.setTextColor(COL_GREEN, COL_BG);
-  tft.drawString("MAKERPULSE", vx(12), vy(12));
-  tft.setFont(&fonts::Font2);
-  tft.setTextColor(COL_FG, COL_BG);
-  tft.drawString("Setup", vx(12), vy(26));
-
-  int y = 54;
-  tft.fillCircle(vx(22), vy(y + 6), 9, COL_GREEN);
-  tft.setTextDatum(middle_center);
-  tft.setFont(&fonts::Font0);
-  tft.setTextColor(COL_BG, COL_GREEN);
-  tft.drawString("1", vx(22), vy(y + 6));
-  tft.setTextDatum(top_left);
-  tft.setFont(&fonts::Font2);
-  tft.setTextColor(COL_FG, COL_BG);
-  tft.drawString("WiFi", vx(40), vy(y - 2));
-  tft.setFont(&fonts::Font0);
-  tft.setTextColor(COL_GREEN, COL_BG);
-  tft.drawString(apSsid, vx(40), vy(y + 16));
-  tft.setTextColor(COL_MUTED, COL_BG);
-  tft.drawString("password   makerpulse", vx(40), vy(y + 30));
-
-  y = 104;
-  tft.fillCircle(vx(22), vy(y + 6), 9, COL_GREEN);
-  tft.setTextDatum(middle_center);
-  tft.setFont(&fonts::Font0);
-  tft.setTextColor(COL_BG, COL_GREEN);
-  tft.drawString("2", vx(22), vy(y + 6));
-  tft.setTextDatum(top_left);
-  tft.setFont(&fonts::Font2);
-  tft.setTextColor(COL_FG, COL_BG);
-  tft.drawString("Browser", vx(40), vy(y - 2));
-  tft.setFont(&fonts::Font0);
-  tft.setTextColor(COL_GREEN, COL_BG);
-  tft.drawString("192.168.4.1", vx(40), vy(y + 16));
-  tft.setTextColor(COL_MUTED, COL_BG);
-  tft.drawString("paste a link to your model", vx(40), vy(y + 30));
-
-  if (H > 200) {
-    tft.setTextColor(COL_MUTED, COL_BG);
-    tft.drawString("Then this screen restarts.", vx(12), vy(H - 16));
-  }
+  uiDashShown = false;
+  ui::renderScreen(&tft, ui::Screen{1, apSsid, ""});
 }
 
 bool touchPressed() {
@@ -2514,6 +2514,7 @@ void connectWifi() {
     ledOff();
     delay(200);
   }
+  diag(WiFi.status() == WL_CONNECTED ? "wifi up" : "wifi failed");
 }
 
 void waitInterval() {
@@ -2521,15 +2522,18 @@ void waitInterval() {
   unsigned long interval = (unsigned long)cfgPoll * 1000UL;
   while (millis() - start < interval) {
     serviceNet();
+    uiServiceBar(start, interval);
     delay(20);
   }
 }
 
 void tick() {
+  diag("check start");
   ledRgb(false, false, true);
   netBusy = true;
   bool ok = fetchStats();
   netBusy = false;
+  diag(ok ? "check done" : "check failed");
   if (!ok) {
     ledRgb(true, false, false);
     if (hasBaseline) current = lastSent;
@@ -2583,6 +2587,8 @@ void tick() {
 }
 
 void setup() {
+  Serial.begin(115200);
+  Serial.printf("\n[MP] MakerPulse %s boot, reset reason %d\n", MAKERPULSE_FW, (int)esp_reset_reason());
   pinMode(PIN_LED_R, OUTPUT);
   pinMode(PIN_LED_G, OUTPUT);
   pinMode(PIN_LED_B, OUTPUT);
@@ -2622,17 +2628,9 @@ void setup() {
   for (int i = 0; i < 20 && time(nullptr) < 1700000000L; i++) delay(200);
   setupHttp();
   setupMqtt();
-  tft.fillScreen(COL_BG);
-  tft.fillRect(vx(0), vy(0), layoutW(), 5, COL_GREEN);
-  tft.setTextDatum(middle_center);
-  tft.setFont(&fonts::Font2);
-  tft.setTextColor(COL_FG, COL_BG);
-  tft.drawString("Connected", vx(layoutW() / 2), vy(layoutH() / 2 - 28));
-  tft.setFont(&fonts::Font0);
-  tft.setTextColor(COL_MUTED, COL_BG);
   String ip = WiFi.localIP().toString();
-  tft.drawString(ip, vx(layoutW() / 2), vy(layoutH() / 2));
-  tft.drawString(ip + "/setup", vx(layoutW() / 2), vy(layoutH() / 2 + 16));
+  uiDashShown = false;
+  ui::renderScreen(&tft, ui::Screen{2, ip.c_str(), ""});
   delay(1200);
   tick();
 }
