@@ -4,7 +4,9 @@
 
 MakerWorld statistics on a Cheap Yellow Display ([ESP32-2432S028](https://github.com/witnessmenow/ESP32-Cheap-Yellow-Display)).
 
-Downloads, likes, prints, boosts, collections and comments — when a value changes, the module sends a Telegram message with the model title. **Comments is the total across all of your published models**, not just the featured one.
+Downloads, likes, prints, boosts, collections and comments on the screen. **Comments is the total across all of your published models**, not just the featured one.
+
+Telegram and Home Assistant/MQTT are optional; without them MakerPulse simply shows your stats on the screen. With Telegram, a change can also send a message with the model title.
 
 After flashing, the CYD talks to MakerWorld on its own. You can close the browser.
 
@@ -18,9 +20,8 @@ After flashing, the CYD talks to MakerWorld on its own. You can close the browse
 - MakerWorld-style screen: dark grey cards, MakerWorld green, an icon per statistic (download, heart, printer, boost, bookmark, comment)
 - Smooth, anti-aliased numbers (Nunito) and a green badge (red when it drops) for each change since the last summary
 - Footer with clock, comment census, check interval, Wi-Fi bars, MQTT status and a line that counts down to the next check
-- Telegram on change
-- Each affected model's title in the message, not only the pinned one
-- MQTT → Home Assistant display backlight (on/off + brightness 0–255) and six sensors (downloads, likes, prints, boosts, collections, comments)
+- Telegram on change (optional) — each affected model's title in the message, not only the pinned one
+- MQTT → Home Assistant display backlight (on/off + brightness 0–255) and six sensors (optional)
 - HTTP endpoint `/light` if you do not want a broker
 - Incomplete comment counts are discarded (`gevonden/totaal` at the bottom of the screen)
 
@@ -54,11 +55,11 @@ The CYD runs its own page. You do not need `config.h`, and you do not flash agai
 1. Upload the sketch.
 2. The screen shows Wi-Fi `MakerPulse-….`, password `makerpulse`, and `http://192.168.4.1`.
 3. Join that network from your phone and open that address.
-4. Fill in home Wi-Fi, a link to one of your models (or a numeric UID), Telegram, MQTT and the backlight. Save. The display joins your network and restarts.
+4. Fill in home Wi-Fi and a link to one of your models (or a numeric UID). Telegram, MQTT and the backlight are optional. Save. The display joins your network and restarts.
 
 **Later**
 
-Open `http://<ip>/setup` in a browser on the same Wi-Fi. `<ip>` is the address on the screen, for example `http://192.168.1.50/setup`. The same page changes Wi-Fi, MakerWorld, Telegram, MQTT, how often it checks, the backlight and the screen rotation. Saving restarts the display.
+Open `http://<ip>/setup` in a browser on the same Wi-Fi. `<ip>` is the address on the screen, for example `http://192.168.1.50/setup`. The same page changes Wi-Fi, MakerWorld, how often it checks, the backlight and the screen rotation, and optionally Telegram and MQTT. Saving restarts the display.
 
 If it cannot join Wi-Fi, tap the screen. The setup network `MakerPulse-….` starts again.
 
@@ -71,7 +72,7 @@ Settings saved in the browser stay on the device and override `config.h`.
 1. Open `firmware/MakerPulse_CYD.ino` in Arduino IDE 2. `config.h` is optional.
 2. Board **ESP32 Dev Module**, flash **4MB**, partition **Default 4MB with spiffs**. Libraries: **LovyanGFX**, **ArduinoJson 7**, **PubSubClient**.
 3. Upload. The screen shows a Wi-Fi name `MakerPulse-….`, password `makerpulse`, and `http://192.168.4.1`.
-4. Join that network and fill in your home Wi-Fi, a link to one of your models (the UID is filled in from it), Telegram and MQTT. The display restarts.
+4. Join that network and fill in your home Wi-Fi and a link to one of your models (the UID is filled in from it). Telegram and MQTT are optional. The display restarts.
 5. To change those later, open `http://<ip>/setup`. The IP is on the screen. If Wi-Fi fails, tap the screen to start the setup network again.
 
 ### Or fill in config.h first
@@ -108,11 +109,13 @@ The sketch logs to the serial port at **115200 baud**: firmware version and rese
 | Cable | USB that carries data (not charge-only) |
 | Network | 2.4 GHz Wi-Fi (not 5 GHz) |
 | Power | A decent 5 V USB supply (≥ 1 A). A weak supply or port can brown out the ESP32 when Wi-Fi transmits: the screen freezes and the device drops off the network. |
-| Optional | Telegram bot, MQTT / Home Assistant |
+| Optional | Telegram bot and MQTT / Home Assistant (not required; screen and web setup work without them) |
 
 Newer USB-C CYD: enable **newer CYD (USB-C)** in the configurator, or set `CYD_PANEL_ST7789 1` in `config.h`.
 
-## Telegram
+## Telegram (optional)
+
+Skip this section if you only want the screen. Leave the Telegram fields empty and MakerPulse still shows your stats.
 
 1. [@BotFather](https://t.me/BotFather) → `/newbot` → token.
 2. Open your bot and tap **Start**.
@@ -121,7 +124,9 @@ Newer USB-C CYD: enable **newer CYD (USB-C)** in the configurator, or set `CYD_P
 
 `TELEGRAM_INTERVAL_SEC` chooses the summary period: `0` (each check), `3600` (1 hour), `21600` (6 hours) or `86400` (24 hours). Each option is one summary of that period for every statistic you left on. A quiet period sends nothing. The screen still refreshes every 2, 5, 10 or 15 minutes (`POLL_INTERVAL_SEC`).
 
-## Home Assistant (MQTT)
+## Home Assistant (MQTT, optional)
+
+Skip this section if you do not use Home Assistant. Leave `MQTT_HOST` empty and MakerPulse still shows your stats (and can still use Telegram).
 
 Backlight is a choice in `config.h`:
 

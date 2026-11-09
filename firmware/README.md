@@ -2,7 +2,7 @@
 
 This folder is the Arduino sketch. You can flash it without editing anything: the screen then tells you to join Wi-Fi **MakerPulse-…** (password `makerpulse`) and open **http://192.168.4.1**. Paste a link to one of your own models (or a numeric UID). Or copy `config.h.example` to `config.h` first, or download a zip from the configurator (then `config.h` is already filled in). A setup saved on the device overrides `config.h`.
 
-The sketch shows your MakerWorld stats on the 2.8" screen (downloads, likes, prints, boosts, collections, comments) and sends a Telegram message on changes, including the model title. **Downloads** is the total of your published models (`myDesignDownloadCount`), not the broader profile download counter. **Comments** is the sum of the Reviews & Ratings count on each model page, not the lower number from the model list. The module keeps checking on its own — you can close the browser.
+The sketch shows your MakerWorld stats on the 2.8" screen (downloads, likes, prints, boosts, collections, comments). Telegram and Home Assistant/MQTT are optional; without them MakerPulse simply shows your stats on the screen. With Telegram configured, a change can also send a message with the model title. **Downloads** is the total of your published models (`myDesignDownloadCount`), not the broader profile download counter. **Comments** is the sum of the Reviews & Ratings count on each model page, not the lower number from the model list. The module keeps checking on its own — you can close the browser.
 
 ## Built-in web server
 
@@ -29,7 +29,7 @@ If Wi-Fi fails, tap the screen. The `MakerPulse-….` network and `http://192.16
 - Arduino IDE 2
 - 2.4 GHz Wi-Fi
 - A MakerWorld profile (numeric user ID — see below)
-- Optional: Telegram bot, MQTT / Home Assistant
+- Optional: Telegram bot, MQTT / Home Assistant (not required; the screen and web setup work without them)
 
 ## 1. Set up Arduino IDE
 
@@ -40,7 +40,7 @@ If Wi-Fi fails, tap the screen. The `MakerPulse-….` network and `http://192.16
 4. Library Manager, install:
    - **LovyanGFX** (lovyan03)
    - **ArduinoJson** (Benoit Blanchon, version 7)
-   - **PubSubClient** (Nick O'Leary) — required for Home Assistant / MQTT
+   - **PubSubClient** (Nick O'Leary) — only needed if you use Home Assistant / MQTT (optional)
 
 ## 2. Put the sketch on a simple path (Windows)
 
@@ -173,7 +173,9 @@ Change these in **`config.h`**, save, and flash again. Do not rotate the sketch 
 | Completely white/black | USB data cable and power |
 | Screen freezes, device unreachable on Wi-Fi | Weak power supply (brownout). Use a decent 5 V ≥ 1 A supply. The serial log shows reset reason `9` after a brownout. |
 
-## 7. Telegram
+## 7. Telegram (optional)
+
+Skip this if you only want the screen. Leave the Telegram fields empty and MakerPulse still shows your stats.
 
 1. In Telegram: search **@BotFather** → `/newbot` → copy the token.
 2. Open your new bot and tap **Start**.
@@ -185,7 +187,9 @@ Each option is the same kind of message: **one summary of that period**, not a p
 
 The CYD stores the last figures in flash. The first boot does not send a notification; after that only a real change does. The message names the title of **every** model whose downloads, likes, prints, boosts, collections or comments changed — not only the pinned one. Comments is the sum of **all** published models. The bottom of the screen shows `gevonden/totaal` (e.g. `48/48`); red means that round's count was incomplete and the previous total is kept.
 
-## 8. Home Assistant — MQTT options
+## 8. Home Assistant — MQTT options (optional)
+
+Skip this if you do not use Home Assistant. Leave `MQTT_HOST` empty and MakerPulse still shows your stats (and can still use Telegram).
 
 The backlight is one choice:
 

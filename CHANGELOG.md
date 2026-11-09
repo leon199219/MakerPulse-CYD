@@ -5,6 +5,7 @@
 ### Changed
 
 - README: new cover image and product photos.
+- Docs: Telegram and Home Assistant (MQTT) are clearly marked as optional; updated cover image.
 
 ### Removed
 
