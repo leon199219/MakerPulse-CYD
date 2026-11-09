@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- README: new cover image and product photos.
+
+### Removed
+
+- Removed the old hero.png and cyd.png images.
+
 ## 2026.11.09-ui4
 
 ### Changed

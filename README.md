@@ -1,6 +1,6 @@
 # MakerPulse
 
-![MakerPulse statistics screen in MakerWorld style](docs/screen-main.svg)
+![MakerPulse: MakerWorld statistics on a Cheap Yellow Display, showing live downloads, likes, prints, boosts, collections and comments](docs/cover.svg)
 
 MakerWorld statistics on a Cheap Yellow Display ([ESP32-2432S028](https://github.com/witnessmenow/ESP32-Cheap-Yellow-Display)).
 
@@ -37,7 +37,13 @@ No MakerWorld login, no third-party cloud. Public profile and model data only.
 - **Footer:** the time of the last check (updates every minute), `found/total` comment count (red = incomplete round), check interval, Wi-Fi signal bars and an MQTT pill (green = connected). The green line along the top of the footer fills up until the next check.
 - Status screens (Wi-Fi, "Connected" with the IP and `/setup`) use the same style.
 
-The images above are rendered from the firmware's own drawing code. `docs/hero.png` and `docs/cyd.png` show the older layout.
+The images above are rendered from the firmware's own drawing code.
+
+## Photos
+
+| Front | Angled |
+| --- | --- |
+| ![MakerPulse in its 3D-printed case, front view showing the stats screen](docs/photo-1.svg) | ![MakerPulse on a cutting mat, angled side view of the wedge-shaped case with USB cable](docs/photo-2.svg) |
 
 ## Web server
 
