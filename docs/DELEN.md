@@ -27,14 +27,15 @@ Only if you ship a printable holder / bezel.
 MakerPulse — MakerWorld stats on a Cheap Yellow Display (ESP32-2432S028).
 
 The screen shows downloads, likes, prints, boosts, collections and comments.
-When a value changes, the module sends a Telegram message itself.
-Home Assistant can control the backlight (on/off + brightness) over MQTT.
+Telegram and Home Assistant/MQTT are optional; without them MakerPulse simply shows your stats on the screen.
+With Telegram, a change can also send a message with the model title.
+With MQTT, Home Assistant can control the backlight (on/off + brightness) and read the six sensors.
 
 ## What you need
 - ESP32-2432S028 (CYD 2.8")
 - USB data cable
 - Wi-Fi
-- (optional) Telegram bot, MQTT / Home Assistant
+- (optional) Telegram bot, MQTT / Home Assistant — not required
 
 ## Getting started
 1. Open the configurator: <YOUR-GROK.ME-URL>
